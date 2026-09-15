@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/BehavePad.Core/BehavePad.Core.csproj" />
+    <Project Path="src/BehavePad/BehavePad.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/BehavePad.Core.Tests/BehavePad.Core.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/BrandKit/BrandKit.csproj" />
+  </Folder>
+</Solution>

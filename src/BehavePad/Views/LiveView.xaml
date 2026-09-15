@@ -1,0 +1,369 @@
+<UserControl x:Class="BehavePad.Views.LiveView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:controls="clr-namespace:BehavePad.Controls"
+             xmlns:vm="clr-namespace:BehavePad.ViewModels"
+             d:DataContext="{d:DesignInstance Type=vm:LiveViewModel}"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <Style x:Key="PipelineChip" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="14,10" />
+        </Style>
+    </UserControl.Resources>
+
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <StackPanel MaxWidth="1040" Margin="36,28,36,36">
+
+            <!-- Header -->
+            <DockPanel>
+                <CheckBox VerticalAlignment="Center"
+                          Command="{Binding ToggleFilterCommand}"
+                          DockPanel.Dock="Right"
+                          IsChecked="{Binding IsFilterOn, Mode=OneWay}"
+                          Style="{StaticResource LargeSwitchStyle}">
+                    <TextBlock FontSize="15" FontWeight="SemiBold" Text="Filter for games" />
+                </CheckBox>
+                <StackPanel>
+                    <TextBlock Style="{StaticResource H1Text}" Text="Live filter" />
+                    <TextBlock Margin="0,6,0,0" Style="{StaticResource BodyText}" Text="Move the sticks and press buttons to see exactly what your games receive." />
+                </StackPanel>
+            </DockPanel>
+
+            <!-- Status and pipeline -->
+            <Border Margin="0,20,0,0" Style="{StaticResource Card}">
+                <StackPanel>
+                    <DockPanel>
+                        <Border Width="44" Height="44" Margin="0,0,16,0" CornerRadius="22">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsFilterOn}" Value="True">
+                                            <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <TextBlock HorizontalAlignment="Center" FontSize="20" Text="&#xEA18;">
+                                <TextBlock.Style>
+                                    <Style BasedOn="{StaticResource GlyphText}" TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsFilterOn}" Value="True">
+                                                <Setter Property="Foreground" Value="{StaticResource OnAccentBrush}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Style="{StaticResource H2Text}" Text="{Binding StatusTitle}" />
+                            <TextBlock Margin="0,3,0,0" Style="{StaticResource BodyText}" Text="{Binding StatusDetail}" />
+                        </StackPanel>
+                    </DockPanel>
+
+                    <Grid Margin="0,20,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition />
+                            <ColumnDefinition Width="36" />
+                            <ColumnDefinition />
+                            <ColumnDefinition Width="36" />
+                            <ColumnDefinition />
+                        </Grid.ColumnDefinitions>
+
+                        <Border Style="{StaticResource PipelineChip}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource OverlineText}" Text="YOUR CONTROLLER" />
+                                <TextBlock Margin="0,4,0,0" FontWeight="SemiBold" Text="{Binding PhysicalStatusText}" />
+                            </StackPanel>
+                        </Border>
+                        <TextBlock Grid.Column="1" HorizontalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" Style="{StaticResource GlyphText}" Text="&#xE76C;" />
+                        <Border Grid.Column="2" Style="{StaticResource PipelineChip}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource OverlineText}" Text="BEHAVEPAD FILTER" />
+                                <TextBlock Margin="0,4,0,0" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" Text="{Binding ProfileStatusText}" />
+                            </StackPanel>
+                        </Border>
+                        <TextBlock Grid.Column="3" HorizontalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" Style="{StaticResource GlyphText}" Text="&#xE76C;" />
+                        <Border Grid.Column="4" Style="{StaticResource PipelineChip}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource OverlineText}" Text="CLEAN CONTROLLER FOR GAMES" />
+                                <TextBlock Margin="0,4,0,0" FontWeight="SemiBold" Text="{Binding VirtualStatusText}" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- No profile -->
+            <Border Margin="0,16,0,0"
+                    Padding="18,14"
+                    Background="{StaticResource HaloSoftBrush}"
+                    CornerRadius="14"
+                    Visibility="{Binding HasProfile, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}">
+                <DockPanel>
+                    <Button Margin="16,0,0,0" controls:Ui.Glyph="&#xE9D9;" Command="{Binding RunTestCommand}" Content="Run drift test" DockPanel.Dock="Right" Style="{StaticResource PrimaryButton}" />
+                    <TextBlock VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" Text="There is no filter yet. The drift test takes under a minute and builds one for this controller." TextWrapping="Wrap" />
+                </DockPanel>
+            </Border>
+
+            <!-- Sticks -->
+            <Border Margin="0,16,0,0" Style="{StaticResource Card}">
+                <StackPanel>
+                    <DockPanel>
+                        <CheckBox DockPanel.Dock="Right" IsChecked="{Binding ZoomIn}" Style="{StaticResource SwitchStyle}">
+                            <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Text="Zoom in on center" />
+                        </CheckBox>
+                        <TextBlock VerticalAlignment="Center" Style="{StaticResource H3Text}" Text="Thumbsticks" />
+                    </DockPanel>
+
+                    <Grid Margin="0,18,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition />
+                            <ColumnDefinition Width="32" />
+                            <ColumnDefinition />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel>
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Right" Style="{StaticResource CaptionText}">
+                                    <Run Text="Drift blocked " /><Run Text="{Binding LeftBlockedText, Mode=OneWay}" />
+                                </TextBlock>
+                                <TextBlock Style="{StaticResource OverlineText}" Text="LEFT STICK" />
+                            </DockPanel>
+                            <controls:StickPlot Height="250"
+                                                Margin="0,10,0,0"
+                                                Center="{Binding LeftCenter}"
+                                                Deadzone="{Binding LeftDeadzone}"
+                                                GrownOutline="{Binding LeftGrownOutline}"
+                                                Outline="{Binding LeftOutline}"
+                                                OutlineMargin="{Binding LeftOutlineMargin}"
+                                                OutputPoint="{Binding LeftOutput}"
+                                                RawPoint="{Binding LeftRaw}"
+                                                ShowOutput="{Binding HasProfile}"
+                                                Zoom="{Binding PlotZoom}" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Right" Style="{StaticResource CaptionText}">
+                                    <Run Text="Drift blocked " /><Run Text="{Binding RightBlockedText, Mode=OneWay}" />
+                                </TextBlock>
+                                <TextBlock Style="{StaticResource OverlineText}" Text="RIGHT STICK" />
+                            </DockPanel>
+                            <controls:StickPlot Height="250"
+                                                Margin="0,10,0,0"
+                                                Center="{Binding RightCenter}"
+                                                Deadzone="{Binding RightDeadzone}"
+                                                GrownOutline="{Binding RightGrownOutline}"
+                                                Outline="{Binding RightOutline}"
+                                                OutlineMargin="{Binding RightOutlineMargin}"
+                                                OutputPoint="{Binding RightOutput}"
+                                                RawPoint="{Binding RightRaw}"
+                                                ShowOutput="{Binding HasProfile}"
+                                                Zoom="{Binding PlotZoom}" />
+                        </StackPanel>
+                    </Grid>
+
+                    <WrapPanel Margin="0,16,0,0" HorizontalAlignment="Center">
+                        <Ellipse Width="10" Height="10" Margin="0,0,6,0" VerticalAlignment="Center" Stroke="{StaticResource DriftBrush}" StrokeThickness="2" />
+                        <TextBlock Margin="0,0,20,0" Style="{StaticResource CaptionText}" Text="Your controller" />
+                        <Ellipse Width="10" Height="10" Margin="0,0,6,0" VerticalAlignment="Center" Fill="{StaticResource AccentBrush}" />
+                        <TextBlock Margin="0,0,20,0" Style="{StaticResource CaptionText}" Text="What games receive" />
+                        <Ellipse Width="11" Height="11" Margin="0,0,6,0" VerticalAlignment="Center" Fill="{StaticResource AccentSoftBrush}" Stroke="{StaticResource AccentBrush}" StrokeDashArray="2,1.5" />
+                        <TextBlock Margin="0,0,20,0" Style="{StaticResource CaptionText}" Text="Area the filter ignores" />
+                        <StackPanel Orientation="Horizontal" Visibility="{Binding HasLearned, Converter={StaticResource BoolToVisibility}}">
+                            <Ellipse Width="11" Height="11" Margin="0,0,6,0" VerticalAlignment="Center" Fill="{StaticResource HaloSoftBrush}" Stroke="{StaticResource HaloBrush}" StrokeDashArray="1.5,2" />
+                            <TextBlock Style="{StaticResource CaptionText}" Text="Area it learned while you played" />
+                        </StackPanel>
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Triggers and buttons -->
+            <Border Margin="0,16,0,0" Style="{StaticResource Card}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="32" />
+                        <ColumnDefinition Width="1.3*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource H3Text}" Text="Triggers" />
+                        <TextBlock Margin="0,14,0,8" Style="{StaticResource OverlineText}" Text="LEFT TRIGGER" />
+                        <controls:TriggerBar Deadzone="{Binding LeftTriggerDeadzone}" OutputValue="{Binding LeftTriggerOutput}" RawValue="{Binding LeftTriggerRaw}" ShowOutput="{Binding HasProfile}" />
+                        <TextBlock Margin="0,16,0,8" Style="{StaticResource OverlineText}" Text="RIGHT TRIGGER" />
+                        <controls:TriggerBar Deadzone="{Binding RightTriggerDeadzone}" OutputValue="{Binding RightTriggerOutput}" RawValue="{Binding RightTriggerRaw}" ShowOutput="{Binding HasProfile}" />
+                        <TextBlock Margin="0,12,0,0" Style="{StaticResource CaptionText}" Text="Top bar: your trigger. Bottom bar: what games receive." />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Right" Style="{StaticResource CaptionText}">
+                                <Run Text="Phantom presses blocked " /><Run Text="{Binding PhantomBlockedText, Mode=OneWay}" />
+                            </TextBlock>
+                            <TextBlock Style="{StaticResource H3Text}" Text="Buttons" />
+                        </DockPanel>
+                        <ItemsControl Margin="0,14,0,0" ItemsSource="{Binding Buttons}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:ButtonLight}">
+                                    <Border MinWidth="52" Margin="0,0,6,6" Padding="10,6" CornerRadius="8">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="{StaticResource SurfaceRaisedBrush}" />
+                                                <Setter Property="TextElement.Foreground" Value="{StaticResource TextSecondaryBrush}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsDown}" Value="True">
+                                                        <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+                                                        <Setter Property="TextElement.Foreground" Value="{StaticResource OnAccentBrush}" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding IsBlocked}" Value="True">
+                                                        <Setter Property="Background" Value="{StaticResource DriftSoftBrush}" />
+                                                        <Setter Property="TextElement.Foreground" Value="{StaticResource DriftBrush}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock HorizontalAlignment="Center" FontSize="12" FontWeight="SemiBold" Text="{Binding Label}" />
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Margin="0,6,0,0" Style="{StaticResource CaptionText}" Text="Mint means games see the press. Red means BehavePad held back a press it treats as unintended." />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Fine-tune -->
+            <Border Margin="0,16,0,0" Style="{StaticResource Card}" Visibility="{Binding HasProfile, Converter={StaticResource BoolToVisibility}}">
+                <StackPanel>
+                    <DockPanel>
+                        <Button controls:Ui.Glyph="&#xE72C;" Command="{Binding ResetToTestedCommand}" Content="Reset to tested values" DockPanel.Dock="Right" Style="{StaticResource GhostButton}" />
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource H3Text}" Text="Fine-tune" />
+                            <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="Changes apply instantly, including in games. Larger areas block more drift but need more stick travel before anything happens." />
+                        </StackPanel>
+                    </DockPanel>
+
+                    <DockPanel Margin="0,18,0,0">
+                        <Border Margin="16,0,0,0" VerticalAlignment="Center" DockPanel.Dock="Right" Style="{StaticResource SegmentHost}">
+                            <StackPanel Orientation="Horizontal">
+                                <RadioButton Content="Round" IsChecked="{Binding ZoneShape, Converter={StaticResource EnumEquals}, ConverterParameter=Circle}" Style="{StaticResource SegmentItem}" />
+                                <RadioButton Content="Shaped to drift" IsChecked="{Binding ZoneShape, Converter={StaticResource EnumEquals}, ConverterParameter=Fitted}" Style="{StaticResource SegmentItem}" />
+                            </StackPanel>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock FontWeight="SemiBold" Text="Ignore zone shape" />
+                            <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="{Binding ShapeCaption}" />
+                        </StackPanel>
+                    </DockPanel>
+
+                    <Grid Margin="0,12,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="190" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="64" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="40" />
+                            <RowDefinition Height="40" />
+                            <RowDefinition Height="40" />
+                            <RowDefinition Height="40" />
+                        </Grid.RowDefinitions>
+
+                        <Grid Grid.ColumnSpan="3" Visibility="{Binding IsCircle, Converter={StaticResource BoolToVisibility}}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="190" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="64" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock VerticalAlignment="Center" Text="Left stick ignored area" />
+                            <Slider Grid.Column="1" VerticalAlignment="Center" LargeChange="0.02" Maximum="0.45" Minimum="0" SmallChange="0.005" Value="{Binding LeftDeadzone}" />
+                            <TextBlock Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding LeftDeadzone, Converter={StaticResource Percent}}" />
+                        </Grid>
+                        <Grid Grid.ColumnSpan="3" Visibility="{Binding IsFitted, Converter={StaticResource BoolToVisibility}}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="190" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="64" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock VerticalAlignment="Center" Text="Left stick margin" />
+                            <Slider Grid.Column="1" VerticalAlignment="Center" LargeChange="0.01" Maximum="0.2" Minimum="0" SmallChange="0.005" Value="{Binding LeftOutlineMargin}" />
+                            <TextBlock Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding LeftOutlineMargin, Converter={StaticResource Percent}}" />
+                        </Grid>
+
+                        <Grid Grid.Row="1" Grid.ColumnSpan="3" Visibility="{Binding IsCircle, Converter={StaticResource BoolToVisibility}}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="190" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="64" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock VerticalAlignment="Center" Text="Right stick ignored area" />
+                            <Slider Grid.Column="1" VerticalAlignment="Center" LargeChange="0.02" Maximum="0.45" Minimum="0" SmallChange="0.005" Value="{Binding RightDeadzone}" />
+                            <TextBlock Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding RightDeadzone, Converter={StaticResource Percent}}" />
+                        </Grid>
+                        <Grid Grid.Row="1" Grid.ColumnSpan="3" Visibility="{Binding IsFitted, Converter={StaticResource BoolToVisibility}}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="190" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="64" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock VerticalAlignment="Center" Text="Right stick margin" />
+                            <Slider Grid.Column="1" VerticalAlignment="Center" LargeChange="0.01" Maximum="0.2" Minimum="0" SmallChange="0.005" Value="{Binding RightOutlineMargin}" />
+                            <TextBlock Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding RightOutlineMargin, Converter={StaticResource Percent}}" />
+                        </Grid>
+
+                        <TextBlock Grid.Row="2" VerticalAlignment="Center" Text="Left trigger ignored pull" />
+                        <Slider Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" LargeChange="0.02" Maximum="0.35" Minimum="0" SmallChange="0.005" Value="{Binding LeftTriggerDeadzone}" />
+                        <TextBlock Grid.Row="2" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding LeftTriggerDeadzone, Converter={StaticResource Percent}}" />
+
+                        <TextBlock Grid.Row="3" VerticalAlignment="Center" Text="Right trigger ignored pull" />
+                        <Slider Grid.Row="3" Grid.Column="1" VerticalAlignment="Center" LargeChange="0.02" Maximum="0.35" Minimum="0" SmallChange="0.005" Value="{Binding RightTriggerDeadzone}" />
+                        <TextBlock Grid.Row="3" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding RightTriggerDeadzone, Converter={StaticResource Percent}}" />
+                    </Grid>
+
+                    <Border Height="1" Margin="0,16" Background="{StaticResource StrokeSubtleBrush}" />
+
+                    <CheckBox IsChecked="{Binding AdaptiveCentering}" Style="{StaticResource SwitchStyle}" Visibility="{Binding IsCircle, Converter={StaticResource BoolToVisibility}}">
+                        <StackPanel>
+                            <TextBlock FontWeight="SemiBold" Text="Adaptive drift guard" />
+                            <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="Follows the stick's resting spot if it shifts during long sessions. It can also cancel a very small tilt held perfectly still for a few seconds, so it starts off." />
+                        </StackPanel>
+                    </CheckBox>
+
+                    <StackPanel Visibility="{Binding IsFitted, Converter={StaticResource BoolToVisibility}}">
+                        <CheckBox IsChecked="{Binding LearnZone}" Style="{StaticResource SwitchStyle}">
+                            <StackPanel>
+                                <TextBlock FontWeight="SemiBold" Text="Learn drift while you play" />
+                                <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="Grows the shaped zone when a stick you let go of creeps somewhere new while every other control is idle. The same spot has to come back after two separate releases, and growth stays within 30% of the tested zone. A slow, deliberate push made right after letting go can still be learned, so it starts off." />
+                            </StackPanel>
+                        </CheckBox>
+                        <DockPanel Margin="0,10,0,0">
+                            <Button controls:Ui.Glyph="&#xE74D;"
+                                    Command="{Binding ForgetLearnedCommand}"
+                                    Content="Forget what it learned"
+                                    DockPanel.Dock="Right"
+                                    IsEnabled="{Binding HasLearned}"
+                                    Style="{StaticResource GhostButton}" />
+                            <TextBlock VerticalAlignment="Center" Style="{StaticResource CaptionText}" Text="{Binding LearnedStatusText}" />
+                        </DockPanel>
+                    </StackPanel>
+
+                    <TextBlock Margin="0,14,0,0" Style="{StaticResource CaptionText}" Text="{Binding PollRateText}" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
