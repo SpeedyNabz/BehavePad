@@ -20,7 +20,7 @@ It runs on Windows 10 and 11 and works with any XInput controller: Xbox One, Xbo
    - a short press delay for buttons that pressed themselves, and a block for buttons that are stuck down.
 3. **Play.** BehavePad reads the real controller about 1,000 times a second and passes the cleaned input to a virtual Xbox controller. Games read the virtual one, and rumble from games is passed back to the real controller. HidHide hides the original controller from games, so the drift can't sneak back in.
 
-You pick how much protection you want:
+You pick how much protection you want, and each stick can use its own preset:
 
 | Level | Best for |
 | --- | --- |
@@ -34,7 +34,7 @@ Every value can be fine-tuned on the Live filter page, and changes apply instant
 
 A round zone has to reach the drift's farthest point in every direction. A stick that drifts along a line, for example one that springs back below center and then creeps far upward, needs a huge circle that swallows most of the stick.
 
-A shaped zone follows the drift instead. While the test runs, BehavePad draws an outline around every spot each stick sits or springs back to. It then adds a margin for the protection level you pick. Each push is measured from the nearest edge of that outline, so every direction still reaches full deflection. A shaped zone never ignores more of the stick than the largest round zone can. Pick the shape on the test results or on the Live filter page.
+A shaped zone follows the drift instead. While the test runs, BehavePad draws an outline around every spot each stick sits or springs back to. It then adds a margin for the protection level you pick. Each push is measured from the nearest edge of that outline, so every direction still reaches full deflection. A shaped zone never ignores more of the stick than the largest round zone can. Each stick can use either shape. Pick them on the test results or on the Live filter page.
 
 With a shaped zone you can also turn on **Learn drift while you play**. It grows the zone only when a stick you let go of creeps somewhere new while every other control is idle, and only after the same spot turns up following two separate releases. It never reaches more than 30% past the tested zone, and **Forget what it learned** undoes it. It stays off by default because a slow, deliberate push made right after letting go looks the same as creep.
 
@@ -55,10 +55,12 @@ With a shaped zone you can also turn on **Learn drift while you play**. It grows
 ## Install
 
 1. Download `BehavePad.exe` from the [latest release](https://github.com/SpeedyNabz/BehavePad/releases/latest) and run it. Testing and the live preview work straight away.
-2. To filter inside games, install two free, open-source drivers from Nefarius Software Solutions. The Setup page links to both.
-   - [ViGEmBus](https://github.com/nefarius/ViGEmBus/releases/latest) creates the virtual controller games read. It is required.
-   - [HidHide](https://github.com/nefarius/HidHide/releases/latest) hides the original controller from games. It is strongly recommended.
-3. Restart your PC if an installer asks you to, then choose **Check again** on the Setup page.
+2. To filter inside games, BehavePad needs two free, open-source drivers from Nefarius Software Solutions. Choose **Install drivers** on the Overview or Setup page, or just turn the filter on, and BehavePad installs them for you.
+   - [ViGEmBus](https://github.com/nefarius/ViGEmBus) creates the virtual controller games read. It is required.
+   - [HidHide](https://github.com/nefarius/HidHide) hides the original controller from games. It is strongly recommended.
+3. Restart your PC if BehavePad asks you to.
+
+BehavePad downloads the official installers from GitHub, checks that each one is exactly the file it expects, and runs them silently after Windows asks for permission once. If you'd rather install the drivers yourself, the Setup page links to both.
 
 To update, exit BehavePad from its notification area icon, replace `BehavePad.exe` with the new one and start it again. Your settings, last test and filter are kept.
 
@@ -75,6 +77,7 @@ Hiding a controller needs administrator rights, so Windows asks for permission w
 
 ## Troubleshooting
 
+- **BehavePad couldn't install the drivers.** Check your internet connection and choose **Install drivers** on the Setup page again. If another installation is running, wait for it to finish first. You can also install ViGEmBus and HidHide yourself from the links on the Setup page.
 - **A game can't see my controller after BehavePad closed unexpectedly.** Open BehavePad. It restores the controller on startup. You can also use **Restore controller visibility** in Setup.
 - **The game still reacts to drift.** Check that HidHide is installed and that the Live filter page says the original controller is hidden. Some games read both controllers when the original stays visible.
 - **The virtual controller shows up as player 2.** That is expected while the original controller is connected. Most games accept input from any player slot.

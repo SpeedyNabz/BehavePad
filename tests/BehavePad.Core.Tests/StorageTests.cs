@@ -29,10 +29,11 @@ public sealed class StorageTests : IDisposable
             Name = "Pad",
             Level = ProtectionLevel.Maximum,
             AdaptiveCentering = true,
-            ZoneShape = ZoneShape.Fitted,
             LearnZone = true,
             RightStick = new StickFilterSettings
             {
+                Level = ProtectionLevel.Precise,
+                Shape = ZoneShape.Fitted,
                 CenterX = 0.03,
                 CenterY = -0.11,
                 Deadzone = 0.14,
@@ -59,8 +60,37 @@ public sealed class StorageTests : IDisposable
         Assert.Equal(32, loaded.Buttons.DebounceFor(GamepadButtons.Y));
         Assert.Equal(ProtectionLevel.Maximum, loaded.Level);
         Assert.True(loaded.AdaptiveCentering);
-        Assert.Equal(ZoneShape.Fitted, loaded.ZoneShape);
+        Assert.Equal(new StickChoice(ProtectionLevel.Precise, ZoneShape.Fitted), loaded.RightStick.Choice);
         Assert.True(loaded.LearnZone);
+        Assert.DoesNotContain("zoneShape", File.ReadAllText(store.FilePath));
+    }
+
+    [Fact]
+    public void Profile_from_version_1_1_gives_both_sticks_its_shared_shape_and_preset()
+    {
+        var path = Path.Combine(_directory, "profile.json");
+        Directory.CreateDirectory(_directory);
+        File.WriteAllText(path, """
+            {
+              "schemaVersion": 2,
+              "level": "Maximum",
+              "rightStick": { "enabled": true, "centerX": 0.03, "centerY": -0.11, "deadzone": 0.2, "outline": [ { "x": 0.02, "y": -0.12 }, { "x": 0.04, "y": 0.6 } ], "outlineMargin": 0.06, "learned": [] },
+              "zoneShape": "Fitted",
+              "learnZone": true
+            }
+            """);
+        var store = new JsonFileStore<FilterProfile>(path);
+
+        var loaded = store.Load()!.Sanitized();
+        store.Save(loaded);
+
+        Assert.Equal(FilterProfile.CurrentSchemaVersion, loaded.SchemaVersion);
+        Assert.Equal(new StickChoice(ProtectionLevel.Maximum, ZoneShape.Fitted), loaded.LeftStick.Choice);
+        Assert.Equal(new StickChoice(ProtectionLevel.Maximum, ZoneShape.Fitted), loaded.RightStick.Choice);
+        Assert.Equal(2, loaded.RightStick.Outline.Count);
+        Assert.True(loaded.LearnZone);
+        Assert.DoesNotContain("zoneShape", File.ReadAllText(path));
+        Assert.Equal(loaded.RightStick, store.Load()!.Sanitized().RightStick);
     }
 
     [Fact]
@@ -79,8 +109,8 @@ public sealed class StorageTests : IDisposable
 
         var loaded = new JsonFileStore<FilterProfile>(path).Load()!.Sanitized();
 
-        Assert.Equal(1, loaded.SchemaVersion);
-        Assert.Equal(ZoneShape.Circle, loaded.ZoneShape);
+        Assert.Equal(FilterProfile.CurrentSchemaVersion, loaded.SchemaVersion);
+        Assert.Equal(new StickChoice(ProtectionLevel.Balanced, ZoneShape.Circle), loaded.RightStick.Choice);
         Assert.Equal(0.14, loaded.RightStick.Deadzone, 6);
         Assert.Equal([new StickPoint(0.03, -0.11)], loaded.RightStick.Outline);
         Assert.Equal(0.14, loaded.RightStick.OutlineMargin, 6);

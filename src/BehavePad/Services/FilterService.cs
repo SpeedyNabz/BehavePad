@@ -1,6 +1,7 @@
 using BehavePad.Core.Engine;
 using BehavePad.Core.Filtering;
 using BehavePad.Core.Input;
+using BehavePad.Core.Setup;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace BehavePad.Services;
@@ -61,6 +62,8 @@ public sealed partial class FilterService : ObservableObject
 
     public HidHideManager HidHide { get; } = new();
 
+    public DriverSetupService DriverSetup { get; } = new();
+
     public bool IsOn => State == FilterState.On;
 
     public bool IsBusy => State is FilterState.Starting or FilterState.Stopping;
@@ -111,7 +114,37 @@ public sealed partial class FilterService : ObservableObject
             : profile.WithLearned(left, right);
     }
 
-    public async Task<bool> StartAsync()
+    /// <summary>Installs whichever drivers are missing, then checks them again.</summary>
+    public async Task<DriverSetupOutcome> InstallDriversAsync()
+    {
+        await RefreshDriversAsync();
+        var packages = new List<DriverPackage>();
+        if (!Vigem.Ready)
+        {
+            packages.Add(DriverPackages.ViGEmBus);
+        }
+
+        if (!HidHideDriver.Installed)
+        {
+            packages.Add(DriverPackages.HidHide);
+        }
+
+        var outcome = await DriverSetup.InstallAsync(packages);
+        await RefreshDriversAsync();
+
+        // Windows can need a restart before it loads a new driver, even when setup reports success.
+        if ((outcome.Result is DriverSetupResult.Installed or DriverSetupResult.NothingToInstall) && !DriversReady)
+        {
+            outcome = DriverSetup.Show(new DriverSetupOutcome(
+                DriverSetupResult.RestartRequired,
+                Vigem.Problem ?? HidHideDriver.Problem ?? "Restart your PC to finish setting up the drivers."));
+        }
+
+        return outcome;
+    }
+
+    /// <param name="installDrivers">Installs missing drivers first. Off for the automatic start at sign-in, so it never asks for permission unprompted.</param>
+    public async Task<bool> StartAsync(bool installDrivers = true)
     {
         if (State != FilterState.Off)
         {
@@ -139,9 +172,24 @@ public sealed partial class FilterService : ObservableObject
         try
         {
             await RefreshDriversAsync();
+            if (!Vigem.Ready && installDrivers && !DriverSetup.IsBusy)
+            {
+                SetMessage("Installing the drivers BehavePad needs to filter inside games. Windows will ask for permission.");
+                var outcome = await InstallDriversAsync();
+                if (!Vigem.Ready)
+                {
+                    var restart = outcome.Result == DriverSetupResult.RestartRequired;
+                    SetMessage(restart ? $"{outcome.Message} Then turn the filter on again." : outcome.Message, isError: !restart);
+                    State = FilterState.Off;
+                    return false;
+                }
+
+                SetMessage(null);
+            }
+
             if (!Vigem.Ready)
             {
-                SetMessage(Vigem.Problem ?? "Install ViGEmBus from the Setup page so games can receive the filtered controller.", isError: true);
+                SetMessage(Vigem.Problem ?? "BehavePad needs ViGEmBus to filter inside games. Choose Install drivers on the Setup page.", isError: true);
                 State = FilterState.Off;
                 return false;
             }
@@ -231,7 +279,7 @@ public sealed partial class FilterService : ObservableObject
         await RefreshDriversAsync();
         if (!HidHideDriver.Ready)
         {
-            SetMessage(HidHideDriver.Problem ?? "Filter is on. Install HidHide from the Setup page so games stop seeing the original controller too.");
+            SetMessage(HidHideDriver.Problem ?? "Filter is on. Choose Install drivers on the Setup page to add HidHide, so games stop seeing the original controller too.");
             return;
         }
 

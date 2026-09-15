@@ -62,7 +62,7 @@ public class FittedZoneTests
     {
         var profile = FilterProfileBuilder.Build(StudyReport(), ProtectionLevel.Balanced);
         var circle = new InputFilter(profile);
-        var fitted = new InputFilter(profile with { ZoneShape = ZoneShape.Fitted });
+        var fitted = new InputFilter(profile with { RightStick = profile.RightStick with { Shape = ZoneShape.Fitted } });
 
         // Where the stick sat untouched at 23:55, 13 minutes after the test.
         var resting = Right(0.047, 0.685);

@@ -44,11 +44,28 @@ public sealed partial class SetupViewModel : ObservableObject, IPageViewModel
         _shell = shell;
         LoadSettings();
         shell.Filter.PropertyChanged += (_, _) => RaiseDriverState();
+        shell.Filter.DriverSetup.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(DriverSetupService.IsBusy))
+            {
+                RaiseDriverState();
+            }
+        };
     }
 
     public DriverInfo Vigem => _shell.Filter.Vigem;
 
     public DriverInfo HidHide => _shell.Filter.HidHideDriver;
+
+    public DriverSetupService DriverSetup => _shell.Filter.DriverSetup;
+
+    /// <summary>True when a driver is missing. A driver that is installed but waiting for a restart has nothing left to install.</summary>
+    public bool CanInstallDrivers => !Vigem.Ready || !HidHide.Installed;
+
+    public string InstallButtonText =>
+        !Vigem.Ready && !HidHide.Installed ? "Install drivers"
+        : !Vigem.Ready ? "Install ViGEmBus"
+        : "Install HidHide";
 
     public string VigemStatus => DescribeDriver(Vigem);
 
@@ -146,6 +163,13 @@ public sealed partial class SetupViewModel : ObservableObject, IPageViewModel
             IsRefreshing = false;
             RaiseDriverState();
         }
+    }
+
+    [RelayCommand]
+    private async Task InstallDriversAsync()
+    {
+        await _shell.Filter.InstallDriversAsync();
+        RaiseDriverState();
     }
 
     [RelayCommand]
@@ -255,5 +279,7 @@ public sealed partial class SetupViewModel : ObservableObject, IPageViewModel
         OnPropertyChanged(nameof(VigemStatus));
         OnPropertyChanged(nameof(HidHideStatus));
         OnPropertyChanged(nameof(HasPendingRestore));
+        OnPropertyChanged(nameof(CanInstallDrivers));
+        OnPropertyChanged(nameof(InstallButtonText));
     }
 }

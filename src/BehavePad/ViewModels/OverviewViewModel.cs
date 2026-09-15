@@ -1,6 +1,7 @@
 using BehavePad.Core.Analysis;
 using BehavePad.Core.Filtering;
 using BehavePad.Core.Input;
+using BehavePad.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -36,7 +37,9 @@ public sealed partial class OverviewViewModel : ObservableObject, IPageViewModel
 
     public bool HasReport => Report is not null;
 
-    private ZoneShape Shape => _shell.Settings.Profile?.ZoneShape ?? ZoneShape.Circle;
+    public DriverSetupService DriverSetup => _shell.Filter.DriverSetup;
+
+    private FilterProfile? Profile => _shell.Settings.Profile;
 
     public bool IsFilterOn => _shell.Filter.IsOn;
 
@@ -45,7 +48,7 @@ public sealed partial class OverviewViewModel : ObservableObject, IPageViewModel
     public string Headline =>
         IsFilterOn ? "Your controller is behaving"
         : Report is null ? "Let's see how your controller behaves"
-        : Describe.Verdict(Report, Shape).Title;
+        : Describe.Verdict(Report, Profile).Title;
 
     public string Subtext =>
         IsFilterOn
@@ -64,19 +67,21 @@ public sealed partial class OverviewViewModel : ObservableObject, IPageViewModel
 
     public string? LastTestedText => Report is null
         ? null
-        : $"Tested {Report.CapturedAt.LocalDateTime:MMM d 'at' h:mm tt} · {_shell.Settings.Profile?.Level} protection{(Shape == ZoneShape.Fitted ? ", shaped zones" : "")}";
+        : Profile is { } profile
+            ? $"Tested {Report.CapturedAt.LocalDateTime:MMM d 'at' h:mm tt} · {Describe.ProfileSummary(profile)}"
+            : $"Tested {Report.CapturedAt.LocalDateTime:MMM d 'at' h:mm tt}";
 
     public Severity? LeftSeverity => Report?.LeftStick.Severity;
 
     public string LeftTitle => Report is null ? "Not tested yet" : Describe.StickTitle(Report.LeftStick);
 
-    public string LeftDetail => Report is null ? "Run the drift test to check it." : Describe.StickDetail(Report.LeftStick, Shape);
+    public string LeftDetail => Report is null ? "Run the drift test to check it." : Describe.StickDetail(Report.LeftStick, Profile?.LeftStick.Shape ?? ZoneShape.Circle);
 
     public Severity? RightSeverity => Report?.RightStick.Severity;
 
     public string RightTitle => Report is null ? "Not tested yet" : Describe.StickTitle(Report.RightStick);
 
-    public string RightDetail => Report is null ? "Run the drift test to check it." : Describe.StickDetail(Report.RightStick, Shape);
+    public string RightDetail => Report is null ? "Run the drift test to check it." : Describe.StickDetail(Report.RightStick, Profile?.RightStick.Shape ?? ZoneShape.Circle);
 
     public Severity? TriggerSeverity => Report is null ? null : Describe.Triggers(Report).Severity;
 
@@ -121,6 +126,9 @@ public sealed partial class OverviewViewModel : ObservableObject, IPageViewModel
 
     [RelayCommand]
     private void OpenSetup() => _shell.CurrentPage = AppPage.Setup;
+
+    [RelayCommand]
+    private async Task InstallDriversAsync() => await _shell.Filter.InstallDriversAsync();
 
     private void OnFrame(object? sender, EventArgs e)
     {

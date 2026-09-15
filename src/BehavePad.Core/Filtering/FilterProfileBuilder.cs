@@ -12,7 +12,12 @@ public static class FilterProfileBuilder
     /// <summary>No fitted zone ignores more of the stick than the largest circle does.</summary>
     public const double MaxZoneArea = MaxStickDeadzone * MaxStickDeadzone;
 
-    public static FilterProfile Build(DriftReport report, ProtectionLevel level, bool adaptiveCentering = false, ZoneShape shape = ZoneShape.Circle)
+    /// <summary>Builds a filter that uses the same shape and preset for everything.</summary>
+    public static FilterProfile Build(DriftReport report, ProtectionLevel level, bool adaptiveCentering = false, ZoneShape shape = ZoneShape.Circle) =>
+        Build(report, new StickChoice(level, shape), new StickChoice(level, shape), level) with { AdaptiveCentering = adaptiveCentering };
+
+    /// <summary>Builds a filter with its own shape and preset for each stick. <paramref name="level"/> sets the triggers and buttons.</summary>
+    public static FilterProfile Build(DriftReport report, StickChoice left, StickChoice right, ProtectionLevel level)
     {
         ArgumentNullException.ThrowIfNull(report);
         return new FilterProfile
@@ -20,13 +25,11 @@ public static class FilterProfileBuilder
             Name = report.ControllerName,
             CreatedAt = report.CapturedAt,
             Level = level,
-            LeftStick = BuildStick(report.LeftStick, level),
-            RightStick = BuildStick(report.RightStick, level),
+            LeftStick = BuildStick(report.LeftStick, left),
+            RightStick = BuildStick(report.RightStick, right),
             LeftTrigger = BuildTrigger(report.LeftTrigger, level),
             RightTrigger = BuildTrigger(report.RightTrigger, level),
             Buttons = BuildButtons(report.ButtonGlitches, level),
-            AdaptiveCentering = adaptiveCentering,
-            ZoneShape = shape,
         };
     }
 
@@ -117,8 +120,13 @@ public static class FilterProfileBuilder
             : (StickZone.ShrinkToArea(outline, minimum, MaxZoneArea), minimum);
     }
 
-    public static StickFilterSettings BuildStick(StickDiagnosis diagnosis, ProtectionLevel level)
+    public static StickFilterSettings BuildStick(StickDiagnosis diagnosis, ProtectionLevel level) =>
+        BuildStick(diagnosis, new StickChoice(level, ZoneShape.Circle));
+
+    /// <summary>Builds both zones for a stick, so switching its shape later needs no new test, and records which one it uses.</summary>
+    public static StickFilterSettings BuildStick(StickDiagnosis diagnosis, StickChoice choice)
     {
+        var level = choice.Level;
         var deadzone = Math.Min(RequiredStickDeadzone(diagnosis, level), MaxStickDeadzone);
         var noiseGate = diagnosis.Jitter >= 0.006 ? Math.Min(diagnosis.Jitter * 0.75, 0.02) : 0;
         var hysteresis = Math.Clamp(0.006 + diagnosis.Jitter * 0.5, 0.006, 0.03);
@@ -126,6 +134,8 @@ public static class FilterProfileBuilder
 
         return new StickFilterSettings
         {
+            Level = level,
+            Shape = choice.Shape,
             CenterX = Math.Round(diagnosis.EstimatedCenter.X, 5),
             CenterY = Math.Round(diagnosis.EstimatedCenter.Y, 5),
             Deadzone = Math.Round(deadzone, 4),

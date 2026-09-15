@@ -47,13 +47,6 @@
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <DockPanel>
-                        <Button VerticalAlignment="Top"
-                                controls:Ui.Glyph="&#xE896;"
-                                Command="{Binding OpenVigemDownloadCommand}"
-                                Content="Download"
-                                DockPanel.Dock="Right"
-                                Style="{StaticResource SecondaryButton}"
-                                Visibility="{Binding Vigem.Ready, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}" />
                         <Border Style="{StaticResource DriverBadge}">
                             <Grid>
                                 <TextBlock HorizontalAlignment="Center" FontSize="18" Foreground="{StaticResource AccentBrush}" Style="{StaticResource GlyphText}" Text="&#xE73E;" Visibility="{Binding Vigem.Ready, Converter={StaticResource BoolToVisibility}}" />
@@ -81,13 +74,6 @@
                     <Border Style="{StaticResource Divider}" />
 
                     <DockPanel>
-                        <Button VerticalAlignment="Top"
-                                controls:Ui.Glyph="&#xE896;"
-                                Command="{Binding OpenHidHideDownloadCommand}"
-                                Content="Download"
-                                DockPanel.Dock="Right"
-                                Style="{StaticResource SecondaryButton}"
-                                Visibility="{Binding HidHide.Ready, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}" />
                         <Border Style="{StaticResource DriverBadge}">
                             <Grid>
                                 <TextBlock HorizontalAlignment="Center" FontSize="18" Foreground="{StaticResource AccentBrush}" Style="{StaticResource GlyphText}" Text="&#xE73E;" Visibility="{Binding HidHide.Ready, Converter={StaticResource BoolToVisibility}}" />
@@ -112,7 +98,42 @@
                         </StackPanel>
                     </DockPanel>
 
-                    <TextBlock Margin="0,18,0,0" Style="{StaticResource CaptionText}" Text="Both drivers are free and open source from Nefarius Software Solutions. Install them, restart your PC if asked, then choose Check again." />
+                    <StackPanel Margin="0,18,0,0">
+                        <Button HorizontalAlignment="Left"
+                                controls:Ui.Glyph="&#xE896;"
+                                Command="{Binding InstallDriversCommand}"
+                                Content="{Binding InstallButtonText}"
+                                Style="{StaticResource PrimaryButton}"
+                                Visibility="{Binding CanInstallDrivers, Converter={StaticResource BoolToVisibility}}" />
+                        <ProgressBar Margin="0,14,0,0"
+                                     Maximum="1"
+                                     Style="{StaticResource ThinProgress}"
+                                     Value="{Binding DriverSetup.Progress, Mode=OneWay}"
+                                     Visibility="{Binding DriverSetup.IsBusy, Converter={StaticResource BoolToVisibility}}" />
+                        <TextBlock Margin="0,10,0,0"
+                                   FontWeight="SemiBold"
+                                   Text="{Binding DriverSetup.Status}"
+                                   TextWrapping="Wrap"
+                                   Visibility="{Binding DriverSetup.Status, Converter={StaticResource NullToVisibility}}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding DriverSetup.StatusIsError}" Value="True">
+                                            <Setter Property="Foreground" Value="{StaticResource DriftBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <TextBlock Margin="0,16,0,0" Style="{StaticResource CaptionText}">
+                        <Run Text="Both drivers are free and open source from Nefarius Software Solutions. BehavePad downloads the official installers, checks that each one is exactly the file it expects, and installs them after Windows asks for permission once. Restart your PC if asked. To install them yourself, download" />
+                        <Hyperlink Command="{Binding OpenVigemDownloadCommand}" Foreground="{StaticResource AccentBrush}">ViGEmBus</Hyperlink>
+                        <Run Text="and" />
+                        <Hyperlink Command="{Binding OpenHidHideDownloadCommand}" Foreground="{StaticResource AccentBrush}">HidHide</Hyperlink><Run Text="." />
+                    </TextBlock>
                 </StackPanel>
             </Border>
 

@@ -16,7 +16,7 @@ public enum ProtectionLevel
     Maximum,
 }
 
-/// <summary>The shape of the area around each stick's rest spot that outputs nothing.</summary>
+/// <summary>The shape of the area around a stick's rest spot that outputs nothing.</summary>
 public enum ZoneShape
 {
     /// <summary>A circle around the measured rest center.</summary>
@@ -25,6 +25,9 @@ public enum ZoneShape
     /// <summary>An outline around every spot the stick drifted or sprang back to during the test, grown by a margin.</summary>
     Fitted,
 }
+
+/// <summary>The zone shape and preset picked for one stick.</summary>
+public readonly record struct StickChoice(ProtectionLevel Level, ZoneShape Shape);
 
 public sealed record StickFilterSettings
 {
@@ -39,6 +42,12 @@ public sealed record StickFilterSettings
     public const int MaxOutlineCorners = 32;
 
     public bool Enabled { get; init; } = true;
+
+    /// <summary>Preset this stick's zone was built with.</summary>
+    public ProtectionLevel Level { get; init; } = ProtectionLevel.Balanced;
+
+    /// <summary>Which ignore zone this stick uses.</summary>
+    public ZoneShape Shape { get; init; }
 
     /// <summary>Measured rest position. The filter treats this point as the new center.</summary>
     public double CenterX { get; init; }
@@ -57,7 +66,7 @@ public sealed record StickFilterSettings
     /// <summary>Extra travel needed to leave the deadzone, which stops flicker right at its edge.</summary>
     public double Hysteresis { get; init; } = 0.006;
 
-    /// <summary>Corners of the fitted zone's outline from the drift test. Used when the profile's shape is <see cref="ZoneShape.Fitted"/>.</summary>
+    /// <summary>Corners of the fitted zone's outline from the drift test. Used when <see cref="Shape"/> is <see cref="ZoneShape.Fitted"/>.</summary>
     public IReadOnlyList<StickPoint> Outline { get; init; } = [];
 
     /// <summary>How far past its outline the fitted zone reaches.</summary>
@@ -68,6 +77,9 @@ public sealed record StickFilterSettings
 
     [JsonIgnore]
     public StickPoint Center => new(CenterX, CenterY);
+
+    [JsonIgnore]
+    public StickChoice Choice => new(Level, Shape);
 
     public StickFilterSettings Sanitized()
     {
@@ -92,6 +104,8 @@ public sealed record StickFilterSettings
 
         return this with
         {
+            Level = Enum.IsDefined(Level) ? Level : ProtectionLevel.Balanced,
+            Shape = Enum.IsDefined(Shape) ? Shape : ZoneShape.Circle,
             CenterX = center.X,
             CenterY = center.Y,
             Deadzone = deadzone,
@@ -108,6 +122,8 @@ public sealed record StickFilterSettings
     public bool Equals(StickFilterSettings? other) =>
         other is not null &&
         Enabled == other.Enabled &&
+        Level == other.Level &&
+        Shape == other.Shape &&
         CenterX.Equals(other.CenterX) &&
         CenterY.Equals(other.CenterY) &&
         Deadzone.Equals(other.Deadzone) &&
@@ -118,8 +134,21 @@ public sealed record StickFilterSettings
         (Outline ?? []).SequenceEqual(other.Outline ?? []) &&
         (Learned ?? []).SequenceEqual(other.Learned ?? []);
 
-    public override int GetHashCode() =>
-        HashCode.Combine(Enabled, CenterX, CenterY, Deadzone, OuterDeadzone, NoiseGate, Hysteresis, OutlineMargin);
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(Enabled);
+        hash.Add(Level);
+        hash.Add(Shape);
+        hash.Add(CenterX);
+        hash.Add(CenterY);
+        hash.Add(Deadzone);
+        hash.Add(OuterDeadzone);
+        hash.Add(NoiseGate);
+        hash.Add(Hysteresis);
+        hash.Add(OutlineMargin);
+        return hash.ToHashCode();
+    }
 
     internal static double Finite(double value, double fallback = 0) => double.IsFinite(value) ? value : fallback;
 
@@ -169,8 +198,11 @@ public sealed record ButtonFilterSettings
 /// <summary>Everything needed to clean up one controller's input.</summary>
 public sealed record FilterProfile
 {
-    /// <summary>Version 2 added fitted zones. Older profiles load with a circle-sized zone until the drift test runs again.</summary>
-    public const int CurrentSchemaVersion = 2;
+    /// <summary>
+    /// Version 2 added fitted zones. Version 3 gave each stick its own shape and preset. Older profiles are upgraded
+    /// when they are sanitized after loading.
+    /// </summary>
+    public const int CurrentSchemaVersion = 3;
 
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
 
@@ -178,6 +210,7 @@ public sealed record FilterProfile
 
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.Now;
 
+    /// <summary>Preset for the triggers and buttons. Profiles before version 3 used it for the sticks too.</summary>
     public ProtectionLevel Level { get; init; } = ProtectionLevel.Balanced;
 
     public StickFilterSettings LeftStick { get; init; } = new();
@@ -190,18 +223,22 @@ public sealed record FilterProfile
 
     public ButtonFilterSettings Buttons { get; init; } = new();
 
-    /// <summary>Follows the stick's rest position if it moves during play. Off by default. Applies to circles only.</summary>
+    /// <summary>Follows the stick's rest position if it moves during play. Off by default. Applies to sticks with a circle.</summary>
     public bool AdaptiveCentering { get; init; }
 
-    /// <summary>Shape of both sticks' ignore zones.</summary>
-    public ZoneShape ZoneShape { get; init; }
+    /// <summary>The shape both sticks shared in version 2 profiles. Read only to upgrade them, and never saved again.</summary>
+    [JsonPropertyName("zoneShape")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ZoneShape? LegacyZoneShape { get; init; }
 
-    /// <summary>Lets fitted zones grow during play to cover drift that creeps further. Off by default.</summary>
+    /// <summary>Lets fitted zones grow during play to cover drift that creeps further. Off by default. Applies to sticks with a fitted zone.</summary>
     public bool LearnZone { get; init; }
 
     public StickFilterSettings Stick(StickSide side) => side == StickSide.Left ? LeftStick : RightStick;
 
     public TriggerFilterSettings Trigger(TriggerSide side) => side == TriggerSide.Left ? LeftTrigger : RightTrigger;
+
+    public bool AnyStickUses(ZoneShape shape) => LeftStick.Shape == shape || RightStick.Shape == shape;
 
     public FilterProfile WithStick(StickSide side, StickFilterSettings settings) =>
         side == StickSide.Left ? this with { LeftStick = settings } : this with { RightStick = settings };
@@ -215,13 +252,28 @@ public sealed record FilterProfile
         RightStick = RightStick with { Learned = right },
     };
 
-    public FilterProfile Sanitized() => this with
+    public FilterProfile Sanitized()
     {
-        LeftStick = (LeftStick ?? new StickFilterSettings()).Sanitized(),
-        RightStick = (RightStick ?? new StickFilterSettings()).Sanitized(),
-        LeftTrigger = (LeftTrigger ?? new TriggerFilterSettings()).Sanitized(),
-        RightTrigger = (RightTrigger ?? new TriggerFilterSettings()).Sanitized(),
-        Buttons = Buttons ?? new ButtonFilterSettings(),
-        ZoneShape = Enum.IsDefined(ZoneShape) ? ZoneShape : ZoneShape.Circle,
-    };
+        var left = LeftStick ?? new StickFilterSettings();
+        var right = RightStick ?? new StickFilterSettings();
+        if (SchemaVersion < 3)
+        {
+            // Older profiles used one shape and one preset for everything.
+            var shape = LegacyZoneShape ?? ZoneShape.Circle;
+            left = left with { Level = Level, Shape = shape };
+            right = right with { Level = Level, Shape = shape };
+        }
+
+        return this with
+        {
+            SchemaVersion = Math.Max(SchemaVersion, CurrentSchemaVersion),
+            LegacyZoneShape = null,
+            Level = Enum.IsDefined(Level) ? Level : ProtectionLevel.Balanced,
+            LeftStick = left.Sanitized(),
+            RightStick = right.Sanitized(),
+            LeftTrigger = (LeftTrigger ?? new TriggerFilterSettings()).Sanitized(),
+            RightTrigger = (RightTrigger ?? new TriggerFilterSettings()).Sanitized(),
+            Buttons = Buttons ?? new ButtonFilterSettings(),
+        };
+    }
 }

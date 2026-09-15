@@ -32,6 +32,10 @@
             <Setter Property="VerticalAlignment" Value="Top" />
             <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />
         </Style>
+        <Style x:Key="CompactSegment" BasedOn="{StaticResource SegmentItem}" TargetType="RadioButton">
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
     </UserControl.Resources>
 
     <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
@@ -427,6 +431,10 @@
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
                             <controls:StickPlot Width="164"
                                                 Height="164"
                                                 VerticalAlignment="Top"
@@ -452,6 +460,21 @@
                                     <TextBlock FontSize="13" Foreground="{StaticResource AccentBrush}" Style="{StaticResource BodyText}" Text="{Binding LeftFilterText}" />
                                 </DockPanel>
                             </StackPanel>
+                            <WrapPanel Grid.Row="1" Grid.ColumnSpan="2" Margin="0,16,0,0">
+                                <Border Margin="0,0,8,8" Style="{StaticResource SegmentHost}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <RadioButton Content="{Binding LeftRoundLabel}" IsChecked="{Binding LeftShape, Converter={StaticResource EnumEquals}, ConverterParameter=Circle}" Style="{StaticResource CompactSegment}" />
+                                        <RadioButton Content="{Binding LeftShapedLabel}" IsChecked="{Binding LeftShape, Converter={StaticResource EnumEquals}, ConverterParameter=Fitted}" Style="{StaticResource CompactSegment}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Margin="0,0,0,8" Style="{StaticResource SegmentHost}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <RadioButton Content="Precise" IsChecked="{Binding LeftLevel, Converter={StaticResource EnumEquals}, ConverterParameter=Precise}" Style="{StaticResource CompactSegment}" />
+                                        <RadioButton Content="Balanced" IsChecked="{Binding LeftLevel, Converter={StaticResource EnumEquals}, ConverterParameter=Balanced}" Style="{StaticResource CompactSegment}" />
+                                        <RadioButton Content="Maximum" IsChecked="{Binding LeftLevel, Converter={StaticResource EnumEquals}, ConverterParameter=Maximum}" Style="{StaticResource CompactSegment}" />
+                                    </StackPanel>
+                                </Border>
+                            </WrapPanel>
                         </Grid>
                     </Border>
 
@@ -461,6 +484,10 @@
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
                             <controls:StickPlot Width="164"
                                                 Height="164"
                                                 VerticalAlignment="Top"
@@ -486,6 +513,21 @@
                                     <TextBlock FontSize="13" Foreground="{StaticResource AccentBrush}" Style="{StaticResource BodyText}" Text="{Binding RightFilterText}" />
                                 </DockPanel>
                             </StackPanel>
+                            <WrapPanel Grid.Row="1" Grid.ColumnSpan="2" Margin="0,16,0,0">
+                                <Border Margin="0,0,8,8" Style="{StaticResource SegmentHost}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <RadioButton Content="{Binding RightRoundLabel}" IsChecked="{Binding RightShape, Converter={StaticResource EnumEquals}, ConverterParameter=Circle}" Style="{StaticResource CompactSegment}" />
+                                        <RadioButton Content="{Binding RightShapedLabel}" IsChecked="{Binding RightShape, Converter={StaticResource EnumEquals}, ConverterParameter=Fitted}" Style="{StaticResource CompactSegment}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Margin="0,0,0,8" Style="{StaticResource SegmentHost}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <RadioButton Content="Precise" IsChecked="{Binding RightLevel, Converter={StaticResource EnumEquals}, ConverterParameter=Precise}" Style="{StaticResource CompactSegment}" />
+                                        <RadioButton Content="Balanced" IsChecked="{Binding RightLevel, Converter={StaticResource EnumEquals}, ConverterParameter=Balanced}" Style="{StaticResource CompactSegment}" />
+                                        <RadioButton Content="Maximum" IsChecked="{Binding RightLevel, Converter={StaticResource EnumEquals}, ConverterParameter=Maximum}" Style="{StaticResource CompactSegment}" />
+                                    </StackPanel>
+                                </Border>
+                            </WrapPanel>
                         </Grid>
                     </Border>
                 </Grid>
@@ -498,6 +540,12 @@
                     <Ellipse Width="10" Height="10" Margin="0,0,6,0" VerticalAlignment="Center" Fill="{StaticResource AccentSoftBrush}" Stroke="{StaticResource AccentBrush}" StrokeDashArray="2,1.5" />
                     <TextBlock Style="{StaticResource CaptionText}" Text="Area the filter ignores" />
                 </WrapPanel>
+                <TextBlock Margin="6,8,0,0" Style="{StaticResource CaptionText}" Text="Round zones are a circle around the stick's real center. Shaped zones hug every spot the stick drifted or sprang back to, so less of the stick is ignored, though diagonal pushes along a long drift can bend slightly." />
+                <TextBlock Margin="6,6,0,0"
+                           Foreground="{StaticResource WarningBrush}"
+                           Style="{StaticResource CaptionText}"
+                           Text="{Binding ShapeHint}"
+                           Visibility="{Binding ShapeHint, Converter={StaticResource NullToVisibility}}" />
 
                 <Grid Margin="0,14,0,0">
                     <Grid.ColumnDefinitions>
@@ -537,30 +585,8 @@
 
                 <Border Margin="0,16,0,0" Style="{StaticResource Card}">
                     <StackPanel>
-                        <TextBlock Style="{StaticResource H3Text}" Text="Ignore zone shape" />
-                        <TextBlock Margin="0,4,0,14" Style="{StaticResource CaptionText}" Text="Both shapes use the same measurements. You can switch later in the live view." />
-                        <UniformGrid Columns="2">
-                            <RadioButton Margin="0,0,6,0" IsChecked="{Binding ZoneShape, Converter={StaticResource EnumEquals}, ConverterParameter=Circle}" Style="{StaticResource ChoiceCard}">
-                                <StackPanel>
-                                    <TextBlock Style="{StaticResource H3Text}" Text="Round" />
-                                    <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="{Binding CircleShapeCost}" />
-                                </StackPanel>
-                            </RadioButton>
-                            <RadioButton Margin="6,0,0,0" IsChecked="{Binding ZoneShape, Converter={StaticResource EnumEquals}, ConverterParameter=Fitted}" Style="{StaticResource ChoiceCard}">
-                                <StackPanel>
-                                    <TextBlock Style="{StaticResource H3Text}" Text="Shaped to drift" />
-                                    <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="{Binding FittedShapeCost}" />
-                                </StackPanel>
-                            </RadioButton>
-                        </UniformGrid>
-                        <TextBlock Margin="0,12,0,0" FontSize="13" Style="{StaticResource BodyText}" Text="{Binding ShapeDescription}" />
-                    </StackPanel>
-                </Border>
-
-                <Border Margin="0,16,0,0" Style="{StaticResource Card}">
-                    <StackPanel>
                         <TextBlock Style="{StaticResource H3Text}" Text="How much protection?" />
-                        <TextBlock Margin="0,4,0,14" Style="{StaticResource CaptionText}" Text="You can fine-tune this later in the live view." />
+                        <TextBlock Margin="0,4,0,14" Style="{StaticResource CaptionText}" Text="Sets both sticks, the triggers and the buttons at once. Each stick can then use its own preset in its card above, and you can fine-tune everything later in the live view." />
                         <UniformGrid Columns="3">
                             <RadioButton Margin="0,0,8,0" IsChecked="{Binding Level, Converter={StaticResource EnumEquals}, ConverterParameter=Precise}" Style="{StaticResource ChoiceCard}">
                                 <StackPanel>

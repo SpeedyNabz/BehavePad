@@ -40,6 +40,13 @@ public partial class App : Application
             return;
         }
 
+        // An elevated copy of BehavePad started only to run the driver installers.
+        if (args.Length > 0 && args[0] == DriverSetupService.InstallArgument)
+        {
+            Shutdown(DriverSetupService.RunHelper(args));
+            return;
+        }
+
         // Register the attached properties before any template needs them.
         RuntimeHelpers.RunClassConstructor(typeof(Ui).TypeHandle);
         EnableBindingTrace();
@@ -146,7 +153,7 @@ public partial class App : Application
 
         if (autoStart)
         {
-            await _filter.StartAsync();
+            await _filter.StartAsync(installDrivers: false);
         }
     }
 

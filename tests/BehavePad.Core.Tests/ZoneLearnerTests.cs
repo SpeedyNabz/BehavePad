@@ -11,9 +11,8 @@ public class ZoneLearnerTests
 
     private static FilterProfile LearningProfile() => new()
     {
-        ZoneShape = ZoneShape.Fitted,
         LearnZone = true,
-        RightStick = new StickFilterSettings { Outline = [new(0.02, -0.12), new(0.04, -0.08)], OutlineMargin = 0.03 },
+        RightStick = new StickFilterSettings { Shape = ZoneShape.Fitted, Outline = [new(0.02, -0.12), new(0.04, -0.08)], OutlineMargin = 0.03 },
     };
 
     [Fact]

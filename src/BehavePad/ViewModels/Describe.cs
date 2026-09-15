@@ -109,7 +109,8 @@ internal static class Describe
         return issues;
     }
 
-    public static (string Title, string Body) Verdict(DriftReport report, ZoneShape shape)
+    /// <param name="profile">The filter to judge against, so each stick is checked with the shape it uses. Null checks circles.</param>
+    public static (string Title, string Body) Verdict(DriftReport report, FilterProfile? profile)
     {
         var issues = Issues(report);
         if (issues.Count == 0)
@@ -119,7 +120,9 @@ internal static class Describe
 
         var title = issues.Count == 1 ? $"{issues[0]} detected" : $"{issues.Count} issues detected";
 
-        var beyondFilter = new[] { report.LeftStick, report.RightStick }.Where(s => FilterProfileBuilder.ExceedsFilterRange(s, shape)).ToList();
+        var beyondFilter = new[] { report.LeftStick, report.RightStick }
+            .Where(s => FilterProfileBuilder.ExceedsFilterRange(s, profile?.Stick(s.Side).Shape ?? ZoneShape.Circle))
+            .ToList();
         if (beyondFilter.Count > 0)
         {
             var sticks = beyondFilter.Count == 2 ? "Both sticks drift" : beyondFilter[0].Side == StickSide.Left ? "The left stick drifts" : "The right stick drifts";
@@ -136,39 +139,62 @@ internal static class Describe
         _ => "Covers everything the test measured with a comfortable margin. Recommended for most people.",
     };
 
-    public static string ZoneSentence(StickFilterSettings settings, ZoneShape shape) =>
-        shape == ZoneShape.Fitted ? $"Ignores {Percent(IgnoredShare(settings, shape))} of the stick, in an outline shaped to where it drifted."
+    /// <summary>What a stick's zone ignores, in the shape it uses.</summary>
+    public static string ZoneSentence(StickFilterSettings settings) =>
+        settings.Shape == ZoneShape.Fitted ? $"Ignores {Percent(IgnoredShare(settings, ZoneShape.Fitted))} of the stick, in an outline shaped to where it drifted."
         : settings.Deadzone <= 0 ? "No deadzone needed."
         : $"Ignores {Percent(settings.Deadzone)} of travel around its real center.";
 
     public static StickZone FittedZone(StickFilterSettings settings) => new(settings.Outline.Concat(settings.Learned), settings.OutlineMargin);
 
-    /// <summary>Share of a stick's area that the zone ignores, which compares fairly across shapes.</summary>
+    /// <summary>Share of a stick's area that a zone of <paramref name="shape"/> ignores, which compares fairly across shapes.</summary>
     public static double IgnoredShare(StickFilterSettings settings, ZoneShape shape) =>
         shape == ZoneShape.Fitted ? FittedZone(settings).AreaShare : Math.Min(settings.Deadzone * settings.Deadzone, 1);
 
-    public static string ShapeCost(FilterProfile profile, ZoneShape shape) =>
-        $"Ignores {Percent(IgnoredShare(profile.LeftStick, shape))} of the left stick, {Percent(IgnoredShare(profile.RightStick, shape))} of the right";
+    /// <summary>A shape choice with the area it would ignore, such as "Shaped · 2.3%".</summary>
+    public static string ShapeLabel(StickFilterSettings settings, ZoneShape shape) =>
+        $"{(shape == ZoneShape.Fitted ? "Shaped" : "Round")} · {Percent(IgnoredShare(settings, shape))}";
 
-    public static string ShapeDescription(DriftReport report, ZoneShape shape)
+    /// <summary>Points out a stick that still uses a circle when a safe circle can't cover its drift but a shaped zone can.</summary>
+    public static string? ShapeHint(DriftReport report, FilterProfile profile)
     {
-        if (shape == ZoneShape.Fitted)
-        {
-            return "Hugs every spot the sticks drifted or sprang back to, so less of each stick is ignored. Diagonal pushes that run along a long drift can bend slightly.";
-        }
+        var sticks = new[] { report.LeftStick, report.RightStick }
+            .Where(s => profile.Stick(s.Side).Shape == ZoneShape.Circle
+                        && FilterProfileBuilder.ExceedsFilterRange(s, ZoneShape.Circle)
+                        && !FilterProfileBuilder.ExceedsFilterRange(s, ZoneShape.Fitted))
+            .ToList();
 
-        var onlyShapedCovers = new[] { report.LeftStick, report.RightStick }
-            .Any(s => FilterProfileBuilder.ExceedsFilterRange(s, ZoneShape.Circle) && !FilterProfileBuilder.ExceedsFilterRange(s, ZoneShape.Fitted));
-        return onlyShapedCovers
-            ? "A circle around each stick's real center, the same size in every direction. A safe circle can't cover this drift, but a shaped zone can."
-            : "A circle around each stick's real center, the same size in every direction.";
+        return sticks.Count switch
+        {
+            0 => null,
+            2 => "Both sticks drift too far for a safe circle, but shaped zones can cover them.",
+            _ => $"The {(sticks[0].Side == StickSide.Left ? "left" : "right")} stick drifts too far for a safe circle, but a shaped zone can cover it.",
+        };
+    }
+
+    /// <summary>A short summary of a profile's presets and shapes, such as "Balanced protection" or "Mixed presets · right stick shaped".</summary>
+    public static string ProfileSummary(FilterProfile profile)
+    {
+        var uniform = profile.LeftStick.Level == profile.Level && profile.RightStick.Level == profile.Level;
+        var shapes = (profile.LeftStick.Shape, profile.RightStick.Shape) switch
+        {
+            (ZoneShape.Fitted, ZoneShape.Fitted) => "shaped zones",
+            (ZoneShape.Fitted, _) => "left stick shaped",
+            (_, ZoneShape.Fitted) => "right stick shaped",
+            _ => null,
+        };
+
+        var levels = uniform ? profile.Level.ToString() : "Mixed presets";
+        return shapes is not null ? $"{levels} · {shapes}"
+            : uniform ? $"{levels} protection"
+            : levels;
     }
 
     /// <summary>Zooms a plot so the drift and the ignore zone fill a good part of it.</summary>
-    public static double PlotZoom(StickDiagnosis diagnosis, StickFilterSettings? settings, ZoneShape shape)
+    public static double PlotZoom(StickDiagnosis diagnosis, StickFilterSettings? settings)
     {
         var reach = settings is null ? 0
-            : shape == ZoneShape.Fitted ? settings.Outline.Concat(settings.Learned).Select(p => p.Magnitude).DefaultIfEmpty(0).Max() + settings.OutlineMargin
+            : settings.Shape == ZoneShape.Fitted ? settings.Outline.Concat(settings.Learned).Select(p => p.Magnitude).DefaultIfEmpty(0).Max() + settings.OutlineMargin
             : diagnosis.EstimatedCenter.Magnitude + settings.Deadzone;
         return Math.Clamp(Math.Max(diagnosis.WorstRestDistance, reach) * 1.7, 0.18, 1.0);
     }

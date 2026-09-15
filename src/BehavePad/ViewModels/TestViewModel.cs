@@ -29,7 +29,7 @@ public sealed partial class TestViewModel : ObservableObject, IPageViewModel
     private const double CountdownMs = 3000;
     private const int MaxCloudPoints = 700;
 
-    /// <summary>Margin drawn around the growing outline while the test runs, before a protection level is picked.</summary>
+    /// <summary>Margin drawn around the growing outline while the test runs, before a preset is picked.</summary>
     private static readonly double PreviewMargin = FilterProfileBuilder.OutlineMargin(ProtectionLevel.Balanced);
 
     private readonly ShellViewModel _shell;
@@ -44,6 +44,9 @@ public sealed partial class TestViewModel : ObservableObject, IPageViewModel
     private StickZone? _rightLiveZone;
     private double _phaseStart;
     private int _frameCount;
+
+    /// <summary>Set while several choices change together, so the proposal is rebuilt once at the end.</summary>
+    private bool _choosing;
 
     [ObservableProperty]
     private TestStep _step;
@@ -118,11 +121,21 @@ public sealed partial class TestViewModel : ObservableObject, IPageViewModel
     [ObservableProperty]
     private DriftReport? _report;
 
+    /// <summary>Preset for the triggers and buttons. Picking it on the protection card also sets both sticks.</summary>
     [ObservableProperty]
     private ProtectionLevel _level = ProtectionLevel.Balanced;
 
     [ObservableProperty]
-    private ZoneShape _zoneShape;
+    private ProtectionLevel _leftLevel = ProtectionLevel.Balanced;
+
+    [ObservableProperty]
+    private ProtectionLevel _rightLevel = ProtectionLevel.Balanced;
+
+    [ObservableProperty]
+    private ZoneShape _leftShape;
+
+    [ObservableProperty]
+    private ZoneShape _rightShape;
 
     [ObservableProperty]
     private FilterProfile? _proposed;
@@ -145,23 +158,21 @@ public sealed partial class TestViewModel : ObservableObject, IPageViewModel
 
     public double LiveOutlineMargin => PreviewMargin;
 
-    public bool IsFitted => ZoneShape == ZoneShape.Fitted;
+    public string VerdictTitle => Report is null ? "" : Describe.Verdict(Report, Proposed).Title;
 
-    public string VerdictTitle => Report is null ? "" : Describe.Verdict(Report, ZoneShape).Title;
-
-    public string VerdictBody => Report is null ? "" : Describe.Verdict(Report, ZoneShape).Body;
+    public string VerdictBody => Report is null ? "" : Describe.Verdict(Report, Proposed).Body;
 
     public Severity OverallSeverity => Report?.Overall ?? Severity.Healthy;
 
     public string LeftTitle => Report is null ? "" : Describe.StickTitle(Report.LeftStick);
 
-    public string LeftDetail => Report is null ? "" : Describe.StickDetail(Report.LeftStick, ZoneShape);
+    public string LeftDetail => Report is null ? "" : Describe.StickDetail(Report.LeftStick, LeftShape);
 
     public Severity LeftSeverity => Report?.LeftStick.Severity ?? Severity.Healthy;
 
     public string RightTitle => Report is null ? "" : Describe.StickTitle(Report.RightStick);
 
-    public string RightDetail => Report is null ? "" : Describe.StickDetail(Report.RightStick, ZoneShape);
+    public string RightDetail => Report is null ? "" : Describe.StickDetail(Report.RightStick, RightShape);
 
     public Severity RightSeverity => Report?.RightStick.Severity ?? Severity.Healthy;
 
@@ -173,27 +184,31 @@ public sealed partial class TestViewModel : ObservableObject, IPageViewModel
 
     public StickPoint RightCenter => Proposed?.RightStick.Center ?? StickPoint.Zero;
 
-    public IReadOnlyList<StickPoint>? LeftOutline => IsFitted ? Proposed?.LeftStick.Outline : null;
+    public IReadOnlyList<StickPoint>? LeftOutline => LeftShape == ZoneShape.Fitted ? Proposed?.LeftStick.Outline : null;
 
-    public IReadOnlyList<StickPoint>? RightOutline => IsFitted ? Proposed?.RightStick.Outline : null;
+    public IReadOnlyList<StickPoint>? RightOutline => RightShape == ZoneShape.Fitted ? Proposed?.RightStick.Outline : null;
 
     public double LeftOutlineMargin => Proposed?.LeftStick.OutlineMargin ?? 0;
 
     public double RightOutlineMargin => Proposed?.RightStick.OutlineMargin ?? 0;
 
-    public string LeftFilterText => Proposed is null ? "" : Describe.ZoneSentence(Proposed.LeftStick, ZoneShape);
+    public string LeftFilterText => Proposed is null ? "" : Describe.ZoneSentence(Proposed.LeftStick);
 
-    public string RightFilterText => Proposed is null ? "" : Describe.ZoneSentence(Proposed.RightStick, ZoneShape);
+    public string RightFilterText => Proposed is null ? "" : Describe.ZoneSentence(Proposed.RightStick);
 
-    public double LeftResultZoom => Report is null ? 1 : Describe.PlotZoom(Report.LeftStick, Proposed?.LeftStick, ZoneShape);
+    public double LeftResultZoom => Report is null ? 1 : Describe.PlotZoom(Report.LeftStick, Proposed?.LeftStick);
 
-    public double RightResultZoom => Report is null ? 1 : Describe.PlotZoom(Report.RightStick, Proposed?.RightStick, ZoneShape);
+    public double RightResultZoom => Report is null ? 1 : Describe.PlotZoom(Report.RightStick, Proposed?.RightStick);
 
-    public string CircleShapeCost => Proposed is null ? "" : Describe.ShapeCost(Proposed, ZoneShape.Circle);
+    public string LeftRoundLabel => Proposed is null ? "Round" : Describe.ShapeLabel(Proposed.LeftStick, ZoneShape.Circle);
 
-    public string FittedShapeCost => Proposed is null ? "" : Describe.ShapeCost(Proposed, ZoneShape.Fitted);
+    public string LeftShapedLabel => Proposed is null ? "Shaped" : Describe.ShapeLabel(Proposed.LeftStick, ZoneShape.Fitted);
 
-    public string ShapeDescription => Report is null ? "" : Describe.ShapeDescription(Report, ZoneShape);
+    public string RightRoundLabel => Proposed is null ? "Round" : Describe.ShapeLabel(Proposed.RightStick, ZoneShape.Circle);
+
+    public string RightShapedLabel => Proposed is null ? "Shaped" : Describe.ShapeLabel(Proposed.RightStick, ZoneShape.Fitted);
+
+    public string? ShapeHint => Report is null || Proposed is null ? null : Describe.ShapeHint(Report, Proposed);
 
     public Severity TriggerSeverity => Report is null ? Severity.Healthy : Describe.Triggers(Report).Severity;
 
@@ -258,9 +273,26 @@ public sealed partial class TestViewModel : ObservableObject, IPageViewModel
         }
     }
 
-    partial void OnLevelChanged(ProtectionLevel value) => RebuildProposal();
+    partial void OnLevelChanged(ProtectionLevel value)
+    {
+        if (!_choosing)
+        {
+            _choosing = true;
+            LeftLevel = value;
+            RightLevel = value;
+            _choosing = false;
+        }
 
-    partial void OnZoneShapeChanged(ZoneShape value) => RebuildProposal();
+        RebuildProposal();
+    }
+
+    partial void OnLeftLevelChanged(ProtectionLevel value) => RebuildProposal();
+
+    partial void OnRightLevelChanged(ProtectionLevel value) => RebuildProposal();
+
+    partial void OnLeftShapeChanged(ZoneShape value) => RebuildProposal();
+
+    partial void OnRightShapeChanged(ZoneShape value) => RebuildProposal();
 
     partial void OnReportChanged(DriftReport? value) => RebuildProposal();
 
@@ -335,7 +367,14 @@ public sealed partial class TestViewModel : ObservableObject, IPageViewModel
 
     private void RebuildProposal()
     {
-        Proposed = Report is null ? null : FilterProfileBuilder.Build(Report, Level, shape: ZoneShape);
+        if (_choosing)
+        {
+            return;
+        }
+
+        Proposed = Report is null
+            ? null
+            : FilterProfileBuilder.Build(Report, new StickChoice(LeftLevel, LeftShape), new StickChoice(RightLevel, RightShape), Level);
         OnPropertyChanged(string.Empty);
     }
 
@@ -396,8 +435,16 @@ public sealed partial class TestViewModel : ObservableObject, IPageViewModel
             return;
         }
 
-        Level = ProtectionLevel.Balanced;
-        ZoneShape = _shell.Settings.Profile?.ZoneShape ?? ZoneShape.Circle;
+        // Start from the choices in the saved filter, so a new test keeps each stick's shape and preset.
+        var saved = _shell.Settings.Profile;
+        _choosing = true;
+        Level = saved?.Level ?? ProtectionLevel.Balanced;
+        LeftLevel = saved?.LeftStick.Level ?? ProtectionLevel.Balanced;
+        RightLevel = saved?.RightStick.Level ?? ProtectionLevel.Balanced;
+        LeftShape = saved?.LeftStick.Shape ?? ZoneShape.Circle;
+        RightShape = saved?.RightStick.Shape ?? ZoneShape.Circle;
+        _choosing = false;
+
         Report = DriftAnalyzer.Analyze(_restCapture, includeSnapBack ? _snap?.ToCapture() : null, _shell.Controller.ControllerName);
         Step = TestStep.Results;
         _shell.Controller.Pulse(0.3, 120);

@@ -56,10 +56,12 @@ public partial class App
             await Task.Delay(900);
             CaptureTall(directory, "06-test-results.png", 1900);
 
-            shell.Test.ZoneShape = ZoneShape.Fitted;
+            shell.Test.LeftShape = ZoneShape.Fitted;
+            shell.Test.RightShape = ZoneShape.Fitted;
             await Task.Delay(500);
             CaptureTall(directory, "06b-test-results-shaped.png", 1900);
-            shell.Test.ZoneShape = ZoneShape.Circle;
+            shell.Test.LeftShape = ZoneShape.Circle;
+            shell.Test.RightShape = ZoneShape.Circle;
 
             shell.Test.Level = ProtectionLevel.Maximum;
             await Task.Delay(400);
@@ -72,7 +74,8 @@ public partial class App
             await Task.Delay(4200);
             CaptureTall(directory, "08-live.png", 1600);
 
-            shell.Live.ZoneShape = ZoneShape.Fitted;
+            shell.Live.LeftShape = ZoneShape.Fitted;
+            shell.Live.RightShape = ZoneShape.Fitted;
             await Task.Delay(2500);
             CaptureTall(directory, "08b-live-shaped.png", 1720);
 

@@ -100,8 +100,18 @@ public sealed partial class LiveViewModel : ObservableObject, IPageViewModel
     private bool _adaptiveCentering;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsFitted), nameof(IsCircle))]
-    private ZoneShape _zoneShape;
+    [NotifyPropertyChangedFor(nameof(IsLeftFitted), nameof(IsLeftCircle), nameof(AnyFitted), nameof(AnyCircle))]
+    private ZoneShape _leftShape;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsRightFitted), nameof(IsRightCircle), nameof(AnyFitted), nameof(AnyCircle))]
+    private ZoneShape _rightShape;
+
+    [ObservableProperty]
+    private ProtectionLevel _leftLevel = ProtectionLevel.Balanced;
+
+    [ObservableProperty]
+    private ProtectionLevel _rightLevel = ProtectionLevel.Balanced;
 
     [ObservableProperty]
     private double _leftOutlineMargin;
@@ -127,7 +137,10 @@ public sealed partial class LiveViewModel : ObservableObject, IPageViewModel
     private IReadOnlyList<StickPoint>? _rightGrownOutline;
 
     [ObservableProperty]
-    private string _shapeCaption = "";
+    private string _leftZoneCaption = "";
+
+    [ObservableProperty]
+    private string _rightZoneCaption = "";
 
     [ObservableProperty]
     private string _learnedStatusText = "";
@@ -167,11 +180,22 @@ public sealed partial class LiveViewModel : ObservableObject, IPageViewModel
 
     public bool HasProfile => _shell.Settings.Profile is not null;
 
+    /// <summary>Presets rebuild a stick from the last drift test, so they need one.</summary>
+    public bool HasReport => _shell.Settings.LastReport is not null;
+
     public bool IsFilterOn => Filter.IsOn;
 
-    public bool IsFitted => ZoneShape == ZoneShape.Fitted;
+    public bool IsLeftFitted => LeftShape == ZoneShape.Fitted;
 
-    public bool IsCircle => !IsFitted;
+    public bool IsLeftCircle => !IsLeftFitted;
+
+    public bool IsRightFitted => RightShape == ZoneShape.Fitted;
+
+    public bool IsRightCircle => !IsRightFitted;
+
+    public bool AnyFitted => IsLeftFitted || IsRightFitted;
+
+    public bool AnyCircle => IsLeftCircle || IsRightCircle;
 
     public bool HasLearned => LeftGrownOutline is not null || RightGrownOutline is not null;
 
@@ -200,12 +224,7 @@ public sealed partial class LiveViewModel : ObservableObject, IPageViewModel
         ? Filter.VirtualSlot is int slot ? $"Player {slot + 1}" : "Connected"
         : "Off";
 
-    public string ProfileStatusText => _shell.Settings.Profile switch
-    {
-        null => "Not built",
-        { ZoneShape: ZoneShape.Fitted } profile => $"{profile.Level} · shaped zones",
-        var profile => $"{profile.Level} protection",
-    };
+    public string ProfileStatusText => _shell.Settings.Profile is { } profile ? Describe.ProfileSummary(profile) : "Not built";
 
     public void OnNavigatedTo()
     {
@@ -237,8 +256,15 @@ public sealed partial class LiveViewModel : ObservableObject, IPageViewModel
     partial void OnAdaptiveCenteringChanged(bool value) =>
         UpdateProfile(p => p with { AdaptiveCentering = value });
 
-    partial void OnZoneShapeChanged(ZoneShape value) =>
-        UpdateProfile(p => p with { ZoneShape = value });
+    partial void OnLeftShapeChanged(ZoneShape value) =>
+        UpdateProfile(p => p.WithStick(StickSide.Left, p.LeftStick with { Shape = value }));
+
+    partial void OnRightShapeChanged(ZoneShape value) =>
+        UpdateProfile(p => p.WithStick(StickSide.Right, p.RightStick with { Shape = value }));
+
+    partial void OnLeftLevelChanged(ProtectionLevel value) => ApplyPreset(StickSide.Left, value);
+
+    partial void OnRightLevelChanged(ProtectionLevel value) => ApplyPreset(StickSide.Right, value);
 
     partial void OnLeftOutlineMarginChanged(double value) =>
         UpdateProfile(p => p.WithStick(StickSide.Left, p.LeftStick with { OutlineMargin = value }));
@@ -260,8 +286,9 @@ public sealed partial class LiveViewModel : ObservableObject, IPageViewModel
             return;
         }
 
-        var level = _shell.Settings.Profile?.Level ?? ProtectionLevel.Balanced;
-        var profile = FilterProfileBuilder.Build(report, level, AdaptiveCentering, ZoneShape) with { LearnZone = LearnZone };
+        var level = (_pending ?? _shell.Settings.Profile)?.Level ?? ProtectionLevel.Balanced;
+        var profile = FilterProfileBuilder.Build(report, new StickChoice(LeftLevel, LeftShape), new StickChoice(RightLevel, RightShape), level)
+            with { AdaptiveCentering = AdaptiveCentering, LearnZone = LearnZone };
         Replace(profile);
     }
 
@@ -271,6 +298,27 @@ public sealed partial class LiveViewModel : ObservableObject, IPageViewModel
         if ((_pending ?? _shell.Settings.Profile) is { } profile)
         {
             Replace(profile.WithLearned([], []));
+        }
+    }
+
+    /// <summary>Rebuilds one stick from the last drift test at a new preset, keeping its shape and anything it learned.</summary>
+    private void ApplyPreset(StickSide side, ProtectionLevel level)
+    {
+        if (_syncing || _shell.Settings.LastReport is not { } report)
+        {
+            return;
+        }
+
+        UpdateProfile(p =>
+        {
+            var current = p.Stick(side);
+            var rebuilt = FilterProfileBuilder.BuildStick(report.Stick(side), new StickChoice(level, current.Shape));
+            return p.WithStick(side, rebuilt with { Enabled = current.Enabled, Learned = current.Learned });
+        });
+
+        if (_pending is { } pending)
+        {
+            ShowStickValues(pending);
         }
     }
 
@@ -325,22 +373,40 @@ public sealed partial class LiveViewModel : ObservableObject, IPageViewModel
         _syncing = true;
         try
         {
-            LeftDeadzone = profile.LeftStick.Deadzone;
-            RightDeadzone = profile.RightStick.Deadzone;
             LeftTriggerDeadzone = profile.LeftTrigger.Deadzone;
             RightTriggerDeadzone = profile.RightTrigger.Deadzone;
             AdaptiveCentering = profile.AdaptiveCentering;
-            ZoneShape = profile.ZoneShape;
-            LeftOutlineMargin = profile.LeftStick.OutlineMargin;
-            RightOutlineMargin = profile.RightStick.OutlineMargin;
             LearnZone = profile.LearnZone;
+            LeftShape = profile.LeftStick.Shape;
+            RightShape = profile.RightStick.Shape;
+            LeftLevel = profile.LeftStick.Level;
+            RightLevel = profile.RightStick.Level;
         }
         finally
         {
             _syncing = false;
         }
 
+        ShowStickValues(profile);
         RefreshZones();
+    }
+
+    /// <summary>Moves the stick sliders to a profile's values without applying anything.</summary>
+    private void ShowStickValues(FilterProfile profile)
+    {
+        var wasSyncing = _syncing;
+        _syncing = true;
+        try
+        {
+            LeftDeadzone = profile.LeftStick.Deadzone;
+            RightDeadzone = profile.RightStick.Deadzone;
+            LeftOutlineMargin = profile.LeftStick.OutlineMargin;
+            RightOutlineMargin = profile.RightStick.OutlineMargin;
+        }
+        finally
+        {
+            _syncing = wasSyncing;
+        }
     }
 
     /// <summary>Shows the zones the running filter uses, including anything it learned during play.</summary>
@@ -350,23 +416,19 @@ public sealed partial class LiveViewModel : ObservableObject, IPageViewModel
         _shownFilter = filter;
         _shownGrowths = filter?.Statistics.ZoneGrowths ?? 0;
 
-        if (filter?.Profile is not { ZoneShape: ZoneShape.Fitted } profile)
+        if (filter?.Profile is not { } profile)
         {
             LeftOutline = RightOutline = LeftGrownOutline = RightGrownOutline = null;
-            ShapeCaption = "A circle around each stick's real center. Set its size below.";
-            LearnedStatusText = "";
+            LeftZoneCaption = RightZoneCaption = LearnedStatusText = "";
             return;
         }
 
-        LeftOutline = profile.LeftStick.Outline;
-        RightOutline = profile.RightStick.Outline;
+        LeftOutline = profile.LeftStick.Shape == ZoneShape.Fitted ? profile.LeftStick.Outline : null;
+        RightOutline = profile.RightStick.Shape == ZoneShape.Fitted ? profile.RightStick.Outline : null;
         LeftGrownOutline = Grown(StickSide.Left, out var leftGain);
         RightGrownOutline = Grown(StickSide.Right, out var rightGain);
-
-        var caption = $"An outline around the drift the test measured, plus the margin below. It ignores {Share(Describe.IgnoredShare(profile.LeftStick, ZoneShape.Fitted))} of the left stick and {Share(Describe.IgnoredShare(profile.RightStick, ZoneShape.Fitted))} of the right.";
-        ShapeCaption = profile.SchemaVersion < 2
-            ? caption + " This filter was built before shaped zones existed, so run the drift test again to shape it."
-            : caption;
+        LeftZoneCaption = Caption(StickSide.Left);
+        RightZoneCaption = Caption(StickSide.Right);
 
         var gains = new List<string>();
         if (LeftGrownOutline is not null)
@@ -381,15 +443,24 @@ public sealed partial class LiveViewModel : ObservableObject, IPageViewModel
 
         LearnedStatusText = gains.Count == 0 ? "Nothing learned yet." : $"Learned {string.Join(" and ", gains)} beyond the tested zone.";
 
+        string Caption(StickSide side)
+        {
+            var settings = profile.Stick(side);
+            var sentence = Describe.ZoneSentence(settings);
+            return settings.Shape == ZoneShape.Fitted && _shell.Settings.LastReport?.Stick(side).RestOutline.Count == 0
+                ? $"{sentence} Run the drift test again to shape it to this stick's drift."
+                : sentence;
+        }
+
         IReadOnlyList<StickPoint>? Grown(StickSide side, out double gain)
         {
             gain = 0;
-            if (filter.LearnedPoints(side).Count == 0 || filter.Zone(side) is not { } zone)
+            var settings = profile.Stick(side);
+            if (settings.Shape != ZoneShape.Fitted || filter.LearnedPoints(side).Count == 0 || filter.Zone(side) is not { } zone)
             {
                 return null;
             }
 
-            var settings = profile.Stick(side);
             gain = Math.Max(zone.AreaShare - new StickZone(settings.Outline, settings.OutlineMargin).AreaShare, 0);
             return zone.Hull;
         }
@@ -400,6 +471,7 @@ public sealed partial class LiveViewModel : ObservableObject, IPageViewModel
     private void RaiseStatus()
     {
         OnPropertyChanged(nameof(HasProfile));
+        OnPropertyChanged(nameof(HasReport));
         OnPropertyChanged(nameof(IsFilterOn));
         OnPropertyChanged(nameof(StatusTitle));
         OnPropertyChanged(nameof(StatusDetail));

@@ -257,20 +257,102 @@
                         </StackPanel>
                     </DockPanel>
 
-                    <DockPanel Margin="0,18,0,0">
-                        <Border Margin="16,0,0,0" VerticalAlignment="Center" DockPanel.Dock="Right" Style="{StaticResource SegmentHost}">
-                            <StackPanel Orientation="Horizontal">
-                                <RadioButton Content="Round" IsChecked="{Binding ZoneShape, Converter={StaticResource EnumEquals}, ConverterParameter=Circle}" Style="{StaticResource SegmentItem}" />
-                                <RadioButton Content="Shaped to drift" IsChecked="{Binding ZoneShape, Converter={StaticResource EnumEquals}, ConverterParameter=Fitted}" Style="{StaticResource SegmentItem}" />
-                            </StackPanel>
-                        </Border>
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock FontWeight="SemiBold" Text="Ignore zone shape" />
-                            <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="{Binding ShapeCaption}" />
+                    <!-- Left stick -->
+                    <DockPanel Margin="0,20,0,0">
+                        <StackPanel VerticalAlignment="Center" DockPanel.Dock="Right" Orientation="Horizontal">
+                            <Border Style="{StaticResource SegmentHost}">
+                                <StackPanel Orientation="Horizontal">
+                                    <RadioButton Content="Round" IsChecked="{Binding LeftShape, Converter={StaticResource EnumEquals}, ConverterParameter=Circle}" Style="{StaticResource SegmentItem}" />
+                                    <RadioButton Content="Shaped to drift" IsChecked="{Binding LeftShape, Converter={StaticResource EnumEquals}, ConverterParameter=Fitted}" Style="{StaticResource SegmentItem}" />
+                                </StackPanel>
+                            </Border>
+                            <Border Margin="10,0,0,0" IsEnabled="{Binding HasReport}" Style="{StaticResource SegmentHost}">
+                                <StackPanel Orientation="Horizontal">
+                                    <RadioButton Content="Precise" IsChecked="{Binding LeftLevel, Converter={StaticResource EnumEquals}, ConverterParameter=Precise}" Style="{StaticResource SegmentItem}" />
+                                    <RadioButton Content="Balanced" IsChecked="{Binding LeftLevel, Converter={StaticResource EnumEquals}, ConverterParameter=Balanced}" Style="{StaticResource SegmentItem}" />
+                                    <RadioButton Content="Maximum" IsChecked="{Binding LeftLevel, Converter={StaticResource EnumEquals}, ConverterParameter=Maximum}" Style="{StaticResource SegmentItem}" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,16,0" VerticalAlignment="Center">
+                            <TextBlock Style="{StaticResource OverlineText}" Text="LEFT STICK" />
+                            <TextBlock Margin="0,4,0,0" Style="{StaticResource CaptionText}" Text="{Binding LeftZoneCaption}" />
                         </StackPanel>
                     </DockPanel>
+                    <Grid Height="40" Margin="0,6,0,0">
+                        <Grid Visibility="{Binding IsLeftCircle, Converter={StaticResource BoolToVisibility}}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="190" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="64" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock VerticalAlignment="Center" Text="Ignored area" />
+                            <Slider Grid.Column="1" VerticalAlignment="Center" LargeChange="0.02" Maximum="0.45" Minimum="0" SmallChange="0.005" Value="{Binding LeftDeadzone}" />
+                            <TextBlock Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding LeftDeadzone, Converter={StaticResource Percent}}" />
+                        </Grid>
+                        <Grid Visibility="{Binding IsLeftFitted, Converter={StaticResource BoolToVisibility}}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="190" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="64" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock VerticalAlignment="Center" Text="Margin around the outline" />
+                            <Slider Grid.Column="1" VerticalAlignment="Center" LargeChange="0.01" Maximum="0.2" Minimum="0" SmallChange="0.005" Value="{Binding LeftOutlineMargin}" />
+                            <TextBlock Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding LeftOutlineMargin, Converter={StaticResource Percent}}" />
+                        </Grid>
+                    </Grid>
 
-                    <Grid Margin="0,12,0,0">
+                    <!-- Right stick -->
+                    <DockPanel Margin="0,16,0,0">
+                        <StackPanel VerticalAlignment="Center" DockPanel.Dock="Right" Orientation="Horizontal">
+                            <Border Style="{StaticResource SegmentHost}">
+                                <StackPanel Orientation="Horizontal">
+                                    <RadioButton Content="Round" IsChecked="{Binding RightShape, Converter={StaticResource EnumEquals}, ConverterParameter=Circle}" Style="{StaticResource SegmentItem}" />
+                                    <RadioButton Content="Shaped to drift" IsChecked="{Binding RightShape, Converter={StaticResource EnumEquals}, ConverterParameter=Fitted}" Style="{StaticResource SegmentItem}" />
+                                </StackPanel>
+                            </Border>
+                            <Border Margin="10,0,0,0" IsEnabled="{Binding HasReport}" Style="{StaticResource SegmentHost}">
+                                <StackPanel Orientation="Horizontal">
+                                    <RadioButton Content="Precise" IsChecked="{Binding RightLevel, Converter={StaticResource EnumEquals}, ConverterParameter=Precise}" Style="{StaticResource SegmentItem}" />
+                                    <RadioButton Content="Balanced" IsChecked="{Binding RightLevel, Converter={StaticResource EnumEquals}, ConverterParameter=Balanced}" Style="{StaticResource SegmentItem}" />
+                                    <RadioButton Content="Maximum" IsChecked="{Binding RightLevel, Converter={StaticResource EnumEquals}, ConverterParameter=Maximum}" Style="{StaticResource SegmentItem}" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,16,0" VerticalAlignment="Center">
+                            <TextBlock Style="{StaticResource OverlineText}" Text="RIGHT STICK" />
+                            <TextBlock Margin="0,4,0,0" Style="{StaticResource CaptionText}" Text="{Binding RightZoneCaption}" />
+                        </StackPanel>
+                    </DockPanel>
+                    <Grid Height="40" Margin="0,6,0,0">
+                        <Grid Visibility="{Binding IsRightCircle, Converter={StaticResource BoolToVisibility}}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="190" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="64" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock VerticalAlignment="Center" Text="Ignored area" />
+                            <Slider Grid.Column="1" VerticalAlignment="Center" LargeChange="0.02" Maximum="0.45" Minimum="0" SmallChange="0.005" Value="{Binding RightDeadzone}" />
+                            <TextBlock Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding RightDeadzone, Converter={StaticResource Percent}}" />
+                        </Grid>
+                        <Grid Visibility="{Binding IsRightFitted, Converter={StaticResource BoolToVisibility}}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="190" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="64" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock VerticalAlignment="Center" Text="Margin around the outline" />
+                            <Slider Grid.Column="1" VerticalAlignment="Center" LargeChange="0.01" Maximum="0.2" Minimum="0" SmallChange="0.005" Value="{Binding RightOutlineMargin}" />
+                            <TextBlock Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding RightOutlineMargin, Converter={StaticResource Percent}}" />
+                        </Grid>
+                    </Grid>
+
+                    <TextBlock Margin="0,8,0,0" Style="{StaticResource CaptionText}" Text="A preset rebuilds that stick from your last drift test, so it replaces any changes you made to its slider." />
+
+                    <Border Height="1" Margin="0,16" Background="{StaticResource StrokeSubtleBrush}" />
+
+                    <!-- Triggers -->
+                    <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="190" />
                             <ColumnDefinition Width="*" />
@@ -279,75 +361,31 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="40" />
                             <RowDefinition Height="40" />
-                            <RowDefinition Height="40" />
-                            <RowDefinition Height="40" />
                         </Grid.RowDefinitions>
 
-                        <Grid Grid.ColumnSpan="3" Visibility="{Binding IsCircle, Converter={StaticResource BoolToVisibility}}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="64" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock VerticalAlignment="Center" Text="Left stick ignored area" />
-                            <Slider Grid.Column="1" VerticalAlignment="Center" LargeChange="0.02" Maximum="0.45" Minimum="0" SmallChange="0.005" Value="{Binding LeftDeadzone}" />
-                            <TextBlock Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding LeftDeadzone, Converter={StaticResource Percent}}" />
-                        </Grid>
-                        <Grid Grid.ColumnSpan="3" Visibility="{Binding IsFitted, Converter={StaticResource BoolToVisibility}}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="64" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock VerticalAlignment="Center" Text="Left stick margin" />
-                            <Slider Grid.Column="1" VerticalAlignment="Center" LargeChange="0.01" Maximum="0.2" Minimum="0" SmallChange="0.005" Value="{Binding LeftOutlineMargin}" />
-                            <TextBlock Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding LeftOutlineMargin, Converter={StaticResource Percent}}" />
-                        </Grid>
+                        <TextBlock VerticalAlignment="Center" Text="Left trigger ignored pull" />
+                        <Slider Grid.Column="1" VerticalAlignment="Center" LargeChange="0.02" Maximum="0.35" Minimum="0" SmallChange="0.005" Value="{Binding LeftTriggerDeadzone}" />
+                        <TextBlock Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding LeftTriggerDeadzone, Converter={StaticResource Percent}}" />
 
-                        <Grid Grid.Row="1" Grid.ColumnSpan="3" Visibility="{Binding IsCircle, Converter={StaticResource BoolToVisibility}}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="64" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock VerticalAlignment="Center" Text="Right stick ignored area" />
-                            <Slider Grid.Column="1" VerticalAlignment="Center" LargeChange="0.02" Maximum="0.45" Minimum="0" SmallChange="0.005" Value="{Binding RightDeadzone}" />
-                            <TextBlock Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding RightDeadzone, Converter={StaticResource Percent}}" />
-                        </Grid>
-                        <Grid Grid.Row="1" Grid.ColumnSpan="3" Visibility="{Binding IsFitted, Converter={StaticResource BoolToVisibility}}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="190" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="64" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock VerticalAlignment="Center" Text="Right stick margin" />
-                            <Slider Grid.Column="1" VerticalAlignment="Center" LargeChange="0.01" Maximum="0.2" Minimum="0" SmallChange="0.005" Value="{Binding RightOutlineMargin}" />
-                            <TextBlock Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding RightOutlineMargin, Converter={StaticResource Percent}}" />
-                        </Grid>
-
-                        <TextBlock Grid.Row="2" VerticalAlignment="Center" Text="Left trigger ignored pull" />
-                        <Slider Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" LargeChange="0.02" Maximum="0.35" Minimum="0" SmallChange="0.005" Value="{Binding LeftTriggerDeadzone}" />
-                        <TextBlock Grid.Row="2" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding LeftTriggerDeadzone, Converter={StaticResource Percent}}" />
-
-                        <TextBlock Grid.Row="3" VerticalAlignment="Center" Text="Right trigger ignored pull" />
-                        <Slider Grid.Row="3" Grid.Column="1" VerticalAlignment="Center" LargeChange="0.02" Maximum="0.35" Minimum="0" SmallChange="0.005" Value="{Binding RightTriggerDeadzone}" />
-                        <TextBlock Grid.Row="3" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding RightTriggerDeadzone, Converter={StaticResource Percent}}" />
+                        <TextBlock Grid.Row="1" VerticalAlignment="Center" Text="Right trigger ignored pull" />
+                        <Slider Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" LargeChange="0.02" Maximum="0.35" Minimum="0" SmallChange="0.005" Value="{Binding RightTriggerDeadzone}" />
+                        <TextBlock Grid.Row="1" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding RightTriggerDeadzone, Converter={StaticResource Percent}}" />
                     </Grid>
 
                     <Border Height="1" Margin="0,16" Background="{StaticResource StrokeSubtleBrush}" />
 
-                    <CheckBox IsChecked="{Binding AdaptiveCentering}" Style="{StaticResource SwitchStyle}" Visibility="{Binding IsCircle, Converter={StaticResource BoolToVisibility}}">
+                    <CheckBox IsChecked="{Binding AdaptiveCentering}" Style="{StaticResource SwitchStyle}" Visibility="{Binding AnyCircle, Converter={StaticResource BoolToVisibility}}">
                         <StackPanel>
                             <TextBlock FontWeight="SemiBold" Text="Adaptive drift guard" />
-                            <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="Follows the stick's resting spot if it shifts during long sessions. It can also cancel a very small tilt held perfectly still for a few seconds, so it starts off." />
+                            <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="For sticks with a round zone. Follows the stick's resting spot if it shifts during long sessions. It can also cancel a very small tilt held perfectly still for a few seconds, so it starts off." />
                         </StackPanel>
                     </CheckBox>
 
-                    <StackPanel Visibility="{Binding IsFitted, Converter={StaticResource BoolToVisibility}}">
+                    <StackPanel Margin="0,12,0,0" Visibility="{Binding AnyFitted, Converter={StaticResource BoolToVisibility}}">
                         <CheckBox IsChecked="{Binding LearnZone}" Style="{StaticResource SwitchStyle}">
                             <StackPanel>
                                 <TextBlock FontWeight="SemiBold" Text="Learn drift while you play" />
-                                <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="Grows the shaped zone when a stick you let go of creeps somewhere new while every other control is idle. The same spot has to come back after two separate releases, and growth stays within 30% of the tested zone. A slow, deliberate push made right after letting go can still be learned, so it starts off." />
+                                <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="For sticks with a shaped zone. Grows the zone when a stick you let go of creeps somewhere new while every other control is idle. The same spot has to come back after two separate releases, and growth stays within 30% of the tested zone. A slow, deliberate push made right after letting go can still be learned, so it starts off." />
                             </StackPanel>
                         </CheckBox>
                         <DockPanel Margin="0,10,0,0">

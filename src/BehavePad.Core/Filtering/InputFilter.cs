@@ -152,7 +152,7 @@ public sealed class InputFilter
     private StickRuntime CreateRuntime(StickFilterSettings settings)
     {
         var runtime = new StickRuntime(settings.Center);
-        if (Profile.ZoneShape != ZoneShape.Fitted)
+        if (settings.Shape != ZoneShape.Fitted)
         {
             return runtime;
         }
