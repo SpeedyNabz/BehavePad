@@ -23,13 +23,6 @@ public sealed record AppSettings
 
     /// <summary>Check BehavePad's GitHub releases once a day and install a newer build on the next exit.</summary>
     public bool AutomaticUpdates { get; init; } = true;
-
-    /// <summary>
-    /// Let BehavePad restart the controller when it hides it, so a game that already had it open has to let go.
-    /// Off by default: on some controllers the restart brings the device back without the half that games and
-    /// BehavePad read, and nothing can use it again until it is unplugged and plugged back in.
-    /// </summary>
-    public bool RestartControllerWhenHiding { get; init; }
 }
 
 /// <summary>Loads and saves settings, the active filter profile, and the most recent test report.</summary>

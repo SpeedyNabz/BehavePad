@@ -168,18 +168,6 @@
                             <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="Opens quietly in the notification area." />
                         </StackPanel>
                     </CheckBox>
-                    <Border Style="{StaticResource Divider}" />
-                    <CheckBox IsChecked="{Binding RestartControllerWhenHiding}" Style="{StaticResource SwitchStyle}">
-                        <StackPanel>
-                            <TextBlock FontWeight="SemiBold" Text="Restart my controller when hiding it" />
-                            <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="Makes a game that was already open let go of the original controller, instead of asking you to unplug it. Windows asks for permission each time." />
-                            <TextBlock Margin="0,4,0,0"
-                                       FontSize="12"
-                                       Foreground="{StaticResource WarningBrush}"
-                                       Text="Some controllers come back from the restart without the part games read, and stay unusable until you unplug them. Leave this off unless unplugging is not an option."
-                                       TextWrapping="Wrap" />
-                        </StackPanel>
-                    </CheckBox>
                 </StackPanel>
             </Border>
 

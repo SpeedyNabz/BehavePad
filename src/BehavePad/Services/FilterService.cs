@@ -284,46 +284,21 @@ public sealed partial class FilterService : ObservableObject
         }
 
         var devices = await Task.Run(ControllerDevices.FindPhysicalControllerNodes);
-        var outcome = await HidHide.HideAsync(devices, _settings.Settings.RestartControllerWhenHiding);
+        var outcome = await HidHide.HideAsync(devices);
         PhysicalHidden = outcome.Kind == HideResultKind.Done && outcome.FilterActive;
-
-        if (outcome.Reconnected && _pad is { } pad && _controller.XInput is { } xinput)
-        {
-            // Reconnecting the real controller can shuffle XInput slots, so find the virtual controller again.
-            var pump = _controller.Pump;
-            pump.Sink = null;
-            if (await VirtualSlotLocator.FindAsync(xinput, state => pad.Submit(state), VirtualSlotTimeout) is int slot)
-            {
-                VirtualSlot = slot;
-                pump.ExcludedSlot = slot;
-            }
-
-            pump.Sink = pad;
-        }
 
         if (outcome.Kind != HideResultKind.Done)
         {
             SetMessage($"Filter is on, but games can still see the original controller. {outcome.Message}");
         }
-        else if (outcome.ReconnectProblem is not null)
-        {
-            // The most specific reason comes first: it says more than "HidHide isn't active yet" can.
-            SetMessage(
-                "Filter is on, but games can still see the original controller. Unplug the controller and plug it back in, then restart any game that was already open.",
-                isError: true);
-        }
         else if (!outcome.FilterActive)
         {
             SetMessage("Filter is on, but HidHide isn't active on your controller yet, so games can still see it. Unplug the controller, plug it back in, then turn the filter off and on again.");
         }
-        else if (outcome.Reconnected)
-        {
-            SetMessage("Filter is on. BehavePad reconnected your controller so HidHide could hide it from games. Restart any game that was already open.");
-        }
         else if (outcome.ReplugRecommended)
         {
-            // Hiding only applies from the next time something opens the controller, and BehavePad is not allowed
-            // to force that, so say what the user can do instead of quietly leaving a game reading the drift.
+            // Hiding only takes effect the next time something opens the controller, and BehavePad never forces
+            // that, so say what the user can do instead of quietly leaving a game reading the drift.
             SetMessage("Filter is on. If a game was already open, unplug your controller and plug it back in so it stops reading the original, then restart the game.");
         }
         else

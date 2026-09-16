@@ -37,9 +37,6 @@ public sealed partial class SetupViewModel : ObservableObject, IPageViewModel
     private bool _automaticUpdates;
 
     [ObservableProperty]
-    private bool _restartControllerWhenHiding;
-
-    [ObservableProperty]
     private int _preferredSlot;
 
     [ObservableProperty]
@@ -127,8 +124,6 @@ public sealed partial class SetupViewModel : ObservableObject, IPageViewModel
     partial void OnUseDemoControllerChanged(bool value) => _ = SwitchControllerAsync(value);
 
     partial void OnAutomaticUpdatesChanged(bool value) => Save(s => s with { AutomaticUpdates = value });
-
-    partial void OnRestartControllerWhenHidingChanged(bool value) => Save(s => s with { RestartControllerWhenHiding = value });
 
     private async Task SwitchControllerAsync(bool useDemo)
     {
@@ -291,7 +286,6 @@ public sealed partial class SetupViewModel : ObservableObject, IPageViewModel
             UseDemoController = _shell.Controller.IsDemo;
             PreferredSlot = settings.PreferredSlot;
             AutomaticUpdates = settings.AutomaticUpdates;
-            RestartControllerWhenHiding = settings.RestartControllerWhenHiding;
         }
         finally
         {
