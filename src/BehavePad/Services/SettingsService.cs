@@ -12,13 +12,17 @@ public sealed record AppSettings
 
     public bool MinimizeToTray { get; init; } = true;
 
-    public bool StartFilterOnLaunch { get; init; }
+    /// <summary>On by default, so a controller that has already been tested is protected from the moment BehavePad opens.</summary>
+    public bool StartFilterOnLaunch { get; init; } = true;
 
     public bool LaunchAtSignIn { get; init; }
 
     public bool UseDemoController { get; init; }
 
     public int PreferredSlot { get; init; } = InputPump.AutoSlot;
+
+    /// <summary>Check BehavePad's GitHub releases once a day and install a newer build on the next exit.</summary>
+    public bool AutomaticUpdates { get; init; } = true;
 }
 
 /// <summary>Loads and saves settings, the active filter profile, and the most recent test report.</summary>

@@ -6,7 +6,6 @@ using BehavePad.Core.Storage;
 using Microsoft.Win32;
 using Nefarius.Drivers.HidHide;
 using Nefarius.Drivers.HidHide.Exceptions;
-using Nefarius.Utilities.DeviceManagement.PnP;
 
 namespace BehavePad.Services;
 
@@ -16,8 +15,8 @@ public sealed record HideState(IReadOnlyList<string> AddedInstanceIds, bool Acti
     /// <summary>True when HidHide is loaded on the controller, so blocking it has an effect.</summary>
     public bool FilterActive { get; init; } = true;
 
-    /// <summary>True when BehavePad reconnected the controller so HidHide could attach to it.</summary>
-    public bool Reconnected { get; init; }
+    /// <summary>True when the user should unplug the controller and plug it back in, so anything holding it lets go.</summary>
+    public bool ReplugRecommended { get; init; }
 }
 
 public enum HideResultKind
@@ -33,7 +32,7 @@ public sealed record HideOutcome(
     string? Message = null,
     int DeviceCount = 0,
     bool FilterActive = true,
-    bool Reconnected = false);
+    bool ReplugRecommended = false);
 
 internal sealed record HelperRequest(string ApplicationPath, IReadOnlyList<string> InstanceIds, HideState? Restore);
 
@@ -50,7 +49,6 @@ public sealed class HidHideManager
     public const string RestoreArgument = "--hidhide-restore";
 
     private const string HidHideEnumKey = @"SYSTEM\CurrentControlSet\Services\HidHide\Enum";
-    private static readonly TimeSpan ReconnectTimeout = TimeSpan.FromSeconds(10);
 
     private readonly JsonFileStore<HideState> _stateStore = new(AppPaths.HiddenDevicesPath);
 
@@ -87,7 +85,12 @@ public sealed class HidHideManager
             };
         _stateStore.Save(merged);
 
-        return new HideOutcome(HideResultKind.Done, null, devices.Count, result.State.FilterActive, result.State.Reconnected);
+        return new HideOutcome(
+            HideResultKind.Done,
+            null,
+            devices.Count,
+            result.State.FilterActive,
+            result.State.ReplugRecommended);
     }
 
     public async Task<HideOutcome> RestoreAsync()
@@ -205,17 +208,18 @@ public sealed class HidHideManager
         }
 
         var filterActive = IsFilterLoaded(instanceIds);
-        var reconnected = false;
-        if (!filterActive && Reconnect(instanceIds))
+
+        // HidHide only turns away new opens, so whatever already holds the controller keeps reading it: a game that
+        // started first, or GameInputSvc, which runs from boot. Only unplugging the controller makes them let go and
+        // ask again under the cloak. BehavePad used to restart the device itself, which on an Xbox Series pad brings
+        // it back without the half anything can read, so it asks the user instead.
+        var replugRecommended = !filterActive || activated || added.Count > 0;
+
+        return new HideState(added, activated, DateTimeOffset.Now)
         {
-            reconnected = true;
-            var currentIds = WaitForFilter(out filterActive);
-
-            // Reconnecting can give device nodes new IDs, so block whatever the controller came back as.
-            added.AddRange(Block(service, currentIds));
-        }
-
-        return new HideState(added, activated, DateTimeOffset.Now) { FilterActive = filterActive, Reconnected = reconnected };
+            FilterActive = filterActive,
+            ReplugRecommended = replugRecommended,
+        };
     }
 
     private static void ApplyRestore(HideState state)
@@ -253,52 +257,6 @@ public sealed class HidHideManager
     {
         var filtered = FilteredDeviceNodes();
         return instanceIds.Any(filtered.Contains);
-    }
-
-    /// <summary>Restarts the top device node of each controller so HidHide loads on it. Needs administrator rights.</summary>
-    private static bool Reconnect(IReadOnlyList<string> instanceIds)
-    {
-        var ids = new HashSet<string>(instanceIds, StringComparer.OrdinalIgnoreCase);
-        var restarted = false;
-        foreach (var id in instanceIds)
-        {
-            try
-            {
-                var device = PnPDevice.GetDeviceByInstanceId(id, DeviceLocationFlags.Normal);
-                if (device.Parent?.InstanceId is { } parent && ids.Contains(parent))
-                {
-                    continue;
-                }
-
-                device.RemoveAndSetup();
-                restarted = true;
-            }
-            catch (Exception ex)
-            {
-                Trace.TraceWarning($"Could not reconnect {id}: {ex.Message}");
-            }
-        }
-
-        return restarted;
-    }
-
-    private static IReadOnlyList<string> WaitForFilter(out bool filterActive)
-    {
-        var stopwatch = Stopwatch.StartNew();
-        IReadOnlyList<string> currentIds = [];
-        filterActive = false;
-        while (stopwatch.Elapsed < ReconnectTimeout)
-        {
-            Thread.Sleep(500);
-            currentIds = ControllerDevices.FindPhysicalControllerNodes().Select(d => d.InstanceId).ToList();
-            if (currentIds.Count > 0 && IsFilterLoaded(currentIds))
-            {
-                filterActive = true;
-                break;
-            }
-        }
-
-        return currentIds;
     }
 
     private static async Task<(HideResultKind Kind, string? Message, HideState? State)> RunAsync(HelperRequest request, string argument)

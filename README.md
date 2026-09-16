@@ -62,7 +62,7 @@ With a shaped zone you can also turn on **Learn drift while you play**. It grows
 
 BehavePad downloads the official installers from GitHub, checks that each one is exactly the file it expects, and runs them silently after Windows asks for permission once. If you'd rather install the drivers yourself, the Setup page links to both.
 
-To update, exit BehavePad from its notification area icon, replace `BehavePad.exe` with the new one and start it again. Your settings, last test and filter are kept.
+BehavePad keeps itself up to date. It checks its GitHub releases once a day, downloads the new build in the background, checks it against the checksum GitHub published, and installs it the next time you exit. To update on the spot, or to turn this off, see **Updates** on the Setup page. Your settings, last test and filter are kept.
 
 No controller at hand? Turn on **Use the demo controller** in Setup. It has right stick drift, a creeping left trigger and a Y button that presses itself.
 
@@ -79,7 +79,7 @@ Hiding a controller needs administrator rights, so Windows asks for permission w
 
 - **BehavePad couldn't install the drivers.** Check your internet connection and choose **Install drivers** on the Setup page again. If another installation is running, wait for it to finish first. You can also install ViGEmBus and HidHide yourself from the links on the Setup page.
 - **A game can't see my controller after BehavePad closed unexpectedly.** Open BehavePad. It restores the controller on startup. You can also use **Restore controller visibility** in Setup.
-- **The game still reacts to drift.** Check that HidHide is installed and that the Live filter page says the original controller is hidden. Some games read both controllers when the original stays visible.
+- **The game still reacts to drift.** A game that was already open when the filter turned on keeps reading your original controller, because hiding only takes effect the next time something opens it. Unplug the controller, plug it back in, then restart the game. Check too that HidHide is installed and that the Live filter page says the original controller is hidden.
 - **The virtual controller shows up as player 2.** That is expected while the original controller is connected. Most games accept input from any player slot.
 - **Some games that use Microsoft's GameInput API may still see the original controller.** That is a HidHide limitation.
 - **My stick got worse.** Run the drift test again. Each test replaces the previous filter.

@@ -103,4 +103,6 @@ public static class AppPaths
     public static string SettingsPath => Path.Combine(DataDirectory, "settings.json");
 
     public static string HiddenDevicesPath => Path.Combine(DataDirectory, "hidden-devices.json");
+
+    public static string UpdatePath => Path.Combine(DataDirectory, "update.json");
 }

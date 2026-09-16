@@ -26,11 +26,12 @@ public sealed partial class ShellViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CurrentViewModel))]
     private AppPage _currentPage;
 
-    public ShellViewModel(ControllerService controller, FilterService filter, SettingsService settings)
+    public ShellViewModel(ControllerService controller, FilterService filter, SettingsService settings, UpdateService update)
     {
         Controller = controller;
         Filter = filter;
         Settings = settings;
+        Update = update;
 
         Overview = new OverviewViewModel(this);
         Test = new TestViewModel(this);
@@ -46,6 +47,8 @@ public sealed partial class ShellViewModel : ObservableObject
     public FilterService Filter { get; }
 
     public SettingsService Settings { get; }
+
+    public UpdateService Update { get; }
 
     public OverviewViewModel Overview { get; }
 

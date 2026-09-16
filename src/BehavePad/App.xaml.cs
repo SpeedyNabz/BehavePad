@@ -24,6 +24,7 @@ public partial class App : Application
     private SettingsService? _settings;
     private ControllerService? _controller;
     private FilterService? _filter;
+    private UpdateService? _update;
     private TrayIcon? _tray;
     private MainWindow? _window;
     private bool _exiting;
@@ -47,6 +48,13 @@ public partial class App : Application
             return;
         }
 
+        // A downloaded release started only to replace the copy of BehavePad that launched it.
+        if (args.Length > 0 && args[0] == UpdateService.ApplyArgument)
+        {
+            Shutdown(UpdateService.RunApplyHelper(args));
+            return;
+        }
+
         // Register the attached properties before any template needs them.
         RuntimeHelpers.RunClassConstructor(typeof(Ui).TypeHandle);
         EnableBindingTrace();
@@ -67,7 +75,8 @@ public partial class App : Application
         var demo = _settings.Settings.UseDemoController || args.Contains(DemoArgument);
         _controller = new ControllerService(demo, _settings.Settings.PreferredSlot);
         _filter = new FilterService(_controller, _settings);
-        var shell = new ShellViewModel(_controller, _filter, _settings);
+        _update = new UpdateService(_settings, () => _filter is { IsOn: false, IsBusy: false });
+        var shell = new ShellViewModel(_controller, _filter, _settings, _update);
         if (Enum.TryParse<AppPage>(ArgumentValue(args, PageArgument), ignoreCase: true, out var page))
         {
             shell.CurrentPage = page;
@@ -86,6 +95,7 @@ public partial class App : Application
 
         _tray = new TrayIcon(ShowMainWindow, () => shell.ToggleFilterCommand.ExecuteAsync(null), ExitApplication);
         _filter.PropertyChanged += OnFilterPropertyChanged;
+        _update.PropertyChanged += OnUpdatePropertyChanged;
 
         if (!args.Contains(StartupRegistration.MinimizedArgument))
         {
@@ -142,8 +152,14 @@ public partial class App : Application
 
     private async Task RunStartupTasksAsync()
     {
+        if (_update!.TakeAppliedUpdate() is { } previous)
+        {
+            _tray?.ShowNotice("BehavePad updated", $"Updated from {previous} to {UpdateService.CurrentVersionText}.");
+        }
+
         await _filter!.RefreshDriversAsync();
 
+        // A controller that has already been tested gets its filter straight away.
         var autoStart = _settings!.Settings.StartFilterOnLaunch && _settings.Profile is not null;
         if (_filter.HidHide.HasPendingRestore && !autoStart)
         {
@@ -155,6 +171,13 @@ public partial class App : Application
         {
             await _filter.StartAsync(installDrivers: false);
         }
+
+        await _update.CheckAsync(automatic: true);
+
+        // The check refuses to run more than once a day on its own, so this only matters for a PC left on for days.
+        var updateTimer = new DispatcherTimer { Interval = TimeSpan.FromHours(6) };
+        updateTimer.Tick += async (_, _) => await _update.CheckAsync(automatic: true);
+        updateTimer.Start();
     }
 
     private async Task CaptureAndExitAsync(string path)
@@ -241,6 +264,19 @@ public partial class App : Application
         }
     }
 
+    private void OnUpdatePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(UpdateService.State) || _update is not { IsReady: true, StagedVersion: { } version })
+        {
+            return;
+        }
+
+        // Installing now would interrupt whatever the controller is in the middle of, so it waits for the way out.
+        Dispatcher.BeginInvoke(() => _tray?.ShowNotice(
+            $"BehavePad {version} is ready",
+            "It installs when you exit BehavePad. To update now, choose Restart and install on the Setup page."));
+    }
+
     private void OnWindowClosing(object? sender, CancelEventArgs e)
     {
         if (_exiting)
@@ -269,6 +305,9 @@ public partial class App : Application
 
         _exiting = true;
         _filter?.ShutdownBlocking();
+
+        // The controller is visible to games again, so a verified build can safely replace this one on the way out.
+        _update?.TryApply(relaunch: false);
         _controller?.Dispose();
         _tray?.Dispose();
         _window?.Close();
