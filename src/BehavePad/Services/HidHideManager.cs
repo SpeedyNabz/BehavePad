@@ -56,7 +56,8 @@ public sealed class HidHideManager
     public const string RestoreArgument = "--hidhide-restore";
 
     private const string HidHideEnumKey = @"SYSTEM\CurrentControlSet\Services\HidHide\Enum";
-    private static readonly TimeSpan ReconnectTimeout = TimeSpan.FromSeconds(10);
+    /// <summary>A USB port power-cycle takes longer to come back than restarting a device node did.</summary>
+    private static readonly TimeSpan ReconnectTimeout = TimeSpan.FromSeconds(20);
 
     private readonly JsonFileStore<HideState> _stateStore = new(AppPaths.HiddenDevicesPath);
 
@@ -239,7 +240,11 @@ public sealed class HidHideManager
             if (reconnectProblem is null)
             {
                 reconnected = true;
-                var currentIds = WaitForFilter(out filterActive);
+                var currentIds = WaitForFilter(out filterActive, out var controllerReturned);
+                if (!controllerReturned)
+                {
+                    reconnectProblem = "your controller did not come back after BehavePad restarted it";
+                }
 
                 // Reconnecting can give device nodes new IDs, so block whatever the controller came back as.
                 added.AddRange(Block(service, currentIds));
@@ -343,41 +348,79 @@ public sealed class HidHideManager
                 continue;
             }
 
-            try
+            if (TryRestart(device, out var restartProblem))
             {
-                device.RemoveAndSetup();
                 restarted = true;
             }
-            catch (Exception removeError)
+            else
             {
-                // A game or a service that already holds the controller can refuse the removal. Power-cycling the
-                // USB port is the same thing as unplugging it, which nothing gets a say in.
-                try
-                {
-                    device.ToUsbPnPDevice().CyclePort();
-                    restarted = true;
-                }
-                catch (Exception cycleError)
-                {
-                    problem ??= removeError.Message;
-                    Trace.TraceWarning($"Could not reconnect {id}: {removeError.Message} / {cycleError.Message}");
-                }
+                problem ??= restartProblem;
             }
         }
 
         return restarted ? null : problem ?? "BehavePad could not restart the controller.";
     }
 
-    private static IReadOnlyList<string> WaitForFilter(out bool filterActive)
+    /// <summary>
+    /// Power-cycles the USB port the controller sits on, which is the same thing as unplugging it: the whole stack
+    /// comes back, including the XInput node that games and BehavePad read.
+    /// </summary>
+    /// <remarks>
+    /// Removing and re-adding the device node looks equivalent and is not. On an Xbox Series pad it can bring the
+    /// composite back with no children at all, leaving a controller that Windows calls healthy and nothing can read.
+    /// That path is kept only for a controller that is not on a USB port, where there is no port to cycle.
+    /// </remarks>
+    private static bool TryRestart(PnPDevice device, out string? problem)
+    {
+        problem = null;
+        try
+        {
+            device.ToUsbPnPDevice().CyclePort();
+            return true;
+        }
+        catch (Exception cycleError)
+        {
+            Trace.TraceWarning($"Could not power-cycle {device.InstanceId}: {cycleError.Message}");
+        }
+
+        try
+        {
+            device.RemoveAndSetup();
+            return true;
+        }
+        catch (Exception removeError)
+        {
+            problem = removeError.Message;
+            Trace.TraceWarning($"Could not restart {device.InstanceId}: {removeError.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Waits for the controller to come back after a restart, and for HidHide to load on it.
+    /// </summary>
+    /// <param name="controllerReturned">
+    /// False when the controller never came back at all. A device node can return without the XInput child games
+    /// read, which leaves a controller that looks healthy in Windows and answers nobody, so it is worth telling
+    /// the user about instead of reporting it as a quiet failure to hide.
+    /// </param>
+    private static IReadOnlyList<string> WaitForFilter(out bool filterActive, out bool controllerReturned)
     {
         var stopwatch = Stopwatch.StartNew();
         IReadOnlyList<string> currentIds = [];
         filterActive = false;
+        controllerReturned = false;
         while (stopwatch.Elapsed < ReconnectTimeout)
         {
             Thread.Sleep(500);
             currentIds = ControllerDevices.FindPhysicalControllerNodes().Select(d => d.InstanceId).ToList();
-            if (currentIds.Count > 0 && IsFilterLoaded(currentIds))
+            if (currentIds.Count == 0)
+            {
+                continue;
+            }
+
+            controllerReturned = true;
+            if (IsFilterLoaded(currentIds))
             {
                 filterActive = true;
                 break;

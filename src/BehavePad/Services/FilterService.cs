@@ -305,6 +305,13 @@ public sealed partial class FilterService : ObservableObject
         {
             SetMessage($"Filter is on, but games can still see the original controller. {outcome.Message}");
         }
+        else if (outcome.ReconnectProblem is not null)
+        {
+            // The most specific reason comes first: it says more than "HidHide isn't active yet" can.
+            SetMessage(
+                "Filter is on, but games can still see the original controller. Unplug the controller and plug it back in, then restart any game that was already open.",
+                isError: true);
+        }
         else if (!outcome.FilterActive)
         {
             SetMessage("Filter is on, but HidHide isn't active on your controller yet, so games can still see it. Unplug the controller, plug it back in, then turn the filter off and on again.");
@@ -312,12 +319,6 @@ public sealed partial class FilterService : ObservableObject
         else if (outcome.Reconnected)
         {
             SetMessage("Filter is on. BehavePad reconnected your controller so HidHide could hide it from games. Restart any game that was already open.");
-        }
-        else if (outcome.ReconnectProblem is not null)
-        {
-            SetMessage(
-                "Filter is on, but BehavePad could not restart your controller, so a game or Windows service that already had it open can still read the drift. Unplug the controller and plug it back in, then restart any game that was open.",
-                isError: true);
         }
         else
         {
