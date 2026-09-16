@@ -1,11 +1,13 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Security;
+using System.Security.Principal;
 using System.Text.Json;
 using BehavePad.Core.Storage;
 using Microsoft.Win32;
 using Nefarius.Drivers.HidHide;
 using Nefarius.Drivers.HidHide.Exceptions;
+using Nefarius.Utilities.DeviceManagement.Extensions;
 using Nefarius.Utilities.DeviceManagement.PnP;
 
 namespace BehavePad.Services;
@@ -18,6 +20,9 @@ public sealed record HideState(IReadOnlyList<string> AddedInstanceIds, bool Acti
 
     /// <summary>True when BehavePad reconnected the controller so HidHide could attach to it.</summary>
     public bool Reconnected { get; init; }
+
+    /// <summary>Why the controller could not be restarted, when that is the reason games may still be reading it.</summary>
+    public string? ReconnectProblem { get; init; }
 }
 
 public enum HideResultKind
@@ -33,7 +38,8 @@ public sealed record HideOutcome(
     string? Message = null,
     int DeviceCount = 0,
     bool FilterActive = true,
-    bool Reconnected = false);
+    bool Reconnected = false,
+    string? ReconnectProblem = null);
 
 internal sealed record HelperRequest(string ApplicationPath, IReadOnlyList<string> InstanceIds, HideState? Restore);
 
@@ -87,7 +93,13 @@ public sealed class HidHideManager
             };
         _stateStore.Save(merged);
 
-        return new HideOutcome(HideResultKind.Done, null, devices.Count, result.State.FilterActive, result.State.Reconnected);
+        return new HideOutcome(
+            HideResultKind.Done,
+            null,
+            devices.Count,
+            result.State.FilterActive,
+            result.State.Reconnected,
+            result.State.ReconnectProblem);
     }
 
     public async Task<HideOutcome> RestoreAsync()
@@ -190,6 +202,15 @@ public sealed class HidHideManager
             throw new InvalidOperationException("HidHide is set to an inverted application list. Turn that off in HidHide Configuration Client first.");
         }
 
+        // Restarting the controller needs administrator rights, and it is the only thing that makes a game or a
+        // service that already opened the controller let go of it. HidHide itself accepts changes from a normal
+        // account on some PCs, so ask for rights before changing anything: hiding without the restart would leave
+        // a cloak up that nothing was ever forced to read again.
+        if (NeedsReconnect(service, instanceIds) && !IsElevated)
+        {
+            throw new UnauthorizedAccessException("Hiding the controller needs administrator rights.");
+        }
+
         if (!service.ApplicationPaths.Contains(applicationPath, StringComparer.OrdinalIgnoreCase))
         {
             service.AddApplicationPath(applicationPath, false);
@@ -211,16 +232,50 @@ public sealed class HidHideManager
         // to make them let go and ask again under the cloak, so do it whenever this run changed what HidHide
         // blocks, not only when the filter was missing altogether.
         var reconnected = false;
-        if ((!filterActive || activated || added.Count > 0) && Reconnect(instanceIds))
+        string? reconnectProblem = null;
+        if (!filterActive || activated || added.Count > 0)
         {
-            reconnected = true;
-            var currentIds = WaitForFilter(out filterActive);
+            reconnectProblem = Reconnect(instanceIds);
+            if (reconnectProblem is null)
+            {
+                reconnected = true;
+                var currentIds = WaitForFilter(out filterActive);
 
-            // Reconnecting can give device nodes new IDs, so block whatever the controller came back as.
-            added.AddRange(Block(service, currentIds));
+                // Reconnecting can give device nodes new IDs, so block whatever the controller came back as.
+                added.AddRange(Block(service, currentIds));
+            }
         }
 
-        return new HideState(added, activated, DateTimeOffset.Now) { FilterActive = filterActive, Reconnected = reconnected };
+        return new HideState(added, activated, DateTimeOffset.Now)
+        {
+            FilterActive = filterActive,
+            Reconnected = reconnected,
+            ReconnectProblem = reconnectProblem,
+        };
+    }
+
+    /// <summary>
+    /// True when something still has to be restarted before hiding takes hold: HidHide is not loaded on the
+    /// controller, the cloak is off, or one of its device nodes is not blocked yet.
+    /// </summary>
+    private static bool NeedsReconnect(HidHideControlService service, IReadOnlyList<string> instanceIds)
+    {
+        if (!service.IsActive || !IsFilterLoaded(instanceIds))
+        {
+            return true;
+        }
+
+        var blocked = service.BlockedInstanceIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return instanceIds.Any(id => !blocked.Contains(id));
+    }
+
+    private static bool IsElevated
+    {
+        get
+        {
+            using var identity = WindowsIdentity.GetCurrent();
+            return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
+        }
     }
 
     private static void ApplyRestore(HideState state)
@@ -260,31 +315,57 @@ public sealed class HidHideManager
         return instanceIds.Any(filtered.Contains);
     }
 
-    /// <summary>Restarts the top device node of each controller so HidHide loads on it. Needs administrator rights.</summary>
-    private static bool Reconnect(IReadOnlyList<string> instanceIds)
+    /// <summary>
+    /// Restarts the top device node of each controller, so everything holding it has to let go and open it again
+    /// under the cloak. Needs administrator rights. Returns null when done, or why it could not be.
+    /// </summary>
+    private static string? Reconnect(IReadOnlyList<string> instanceIds)
     {
         var ids = new HashSet<string>(instanceIds, StringComparer.OrdinalIgnoreCase);
         var restarted = false;
+        string? problem = null;
+
         foreach (var id in instanceIds)
         {
+            PnPDevice device;
             try
             {
-                var device = PnPDevice.GetDeviceByInstanceId(id, DeviceLocationFlags.Normal);
+                device = PnPDevice.GetDeviceByInstanceId(id, DeviceLocationFlags.Normal);
                 if (device.Parent?.InstanceId is { } parent && ids.Contains(parent))
                 {
                     continue;
                 }
-
-                device.RemoveAndSetup();
-                restarted = true;
             }
             catch (Exception ex)
             {
-                Trace.TraceWarning($"Could not reconnect {id}: {ex.Message}");
+                problem ??= ex.Message;
+                Trace.TraceWarning($"Could not find {id}: {ex.Message}");
+                continue;
+            }
+
+            try
+            {
+                device.RemoveAndSetup();
+                restarted = true;
+            }
+            catch (Exception removeError)
+            {
+                // A game or a service that already holds the controller can refuse the removal. Power-cycling the
+                // USB port is the same thing as unplugging it, which nothing gets a say in.
+                try
+                {
+                    device.ToUsbPnPDevice().CyclePort();
+                    restarted = true;
+                }
+                catch (Exception cycleError)
+                {
+                    problem ??= removeError.Message;
+                    Trace.TraceWarning($"Could not reconnect {id}: {removeError.Message} / {cycleError.Message}");
+                }
             }
         }
 
-        return restarted;
+        return restarted ? null : problem ?? "BehavePad could not restart the controller.";
     }
 
     private static IReadOnlyList<string> WaitForFilter(out bool filterActive)

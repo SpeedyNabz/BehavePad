@@ -313,6 +313,12 @@ public sealed partial class FilterService : ObservableObject
         {
             SetMessage("Filter is on. BehavePad reconnected your controller so HidHide could hide it from games. Restart any game that was already open.");
         }
+        else if (outcome.ReconnectProblem is not null)
+        {
+            SetMessage(
+                "Filter is on, but BehavePad could not restart your controller, so a game or Windows service that already had it open can still read the drift. Unplug the controller and plug it back in, then restart any game that was open.",
+                isError: true);
+        }
         else
         {
             SetMessage("Filter is on. Restart any game that was already open so it picks up the clean controller.");
