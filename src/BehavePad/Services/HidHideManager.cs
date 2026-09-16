@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Security;
 using System.Security.Principal;
 using System.Text.Json;
+using BehavePad.Core.Setup;
 using BehavePad.Core.Storage;
 using Microsoft.Win32;
 using Nefarius.Drivers.HidHide;
@@ -23,6 +24,9 @@ public sealed record HideState(IReadOnlyList<string> AddedInstanceIds, bool Acti
 
     /// <summary>Why the controller could not be restarted, when that is the reason games may still be reading it.</summary>
     public string? ReconnectProblem { get; init; }
+
+    /// <summary>True when the user should unplug the controller and plug it back in, so anything holding it lets go.</summary>
+    public bool ReplugRecommended { get; init; }
 }
 
 public enum HideResultKind
@@ -39,9 +43,10 @@ public sealed record HideOutcome(
     int DeviceCount = 0,
     bool FilterActive = true,
     bool Reconnected = false,
-    string? ReconnectProblem = null);
+    string? ReconnectProblem = null,
+    bool ReplugRecommended = false);
 
-internal sealed record HelperRequest(string ApplicationPath, IReadOnlyList<string> InstanceIds, HideState? Restore);
+internal sealed record HelperRequest(string ApplicationPath, IReadOnlyList<string> InstanceIds, HideState? Restore, bool AllowRestart = false);
 
 internal sealed record HelperResult(bool Success, string? Error, HideState? State);
 
@@ -64,7 +69,11 @@ public sealed class HidHideManager
     /// <summary>True when an earlier session hid controllers and never put them back, for example after a crash.</summary>
     public bool HasPendingRestore => _stateStore.Load() is { } state && (state.AddedInstanceIds.Count > 0 || state.ActivatedCloak);
 
-    public async Task<HideOutcome> HideAsync(IReadOnlyList<ControllerDevice> devices)
+    /// <param name="allowRestart">
+    /// The user's opt-in for restarting the controller so anything already holding it has to let go. Off by default,
+    /// because on some controllers the restart brings the device back without the half that anything can read.
+    /// </param>
+    public async Task<HideOutcome> HideAsync(IReadOnlyList<ControllerDevice> devices, bool allowRestart)
     {
         if (!DriverStatus.CheckHidHide().Ready)
         {
@@ -76,7 +85,7 @@ public sealed class HidHideManager
             return new HideOutcome(HideResultKind.Failed, "No physical controller was found to hide.");
         }
 
-        var request = new HelperRequest(CurrentExecutable, devices.Select(d => d.InstanceId).ToList(), null);
+        var request = new HelperRequest(CurrentExecutable, devices.Select(d => d.InstanceId).ToList(), null, allowRestart);
         var result = await RunAsync(request, HideArgument);
         if (result.Kind != HideResultKind.Done || result.State is null)
         {
@@ -100,7 +109,8 @@ public sealed class HidHideManager
             devices.Count,
             result.State.FilterActive,
             result.State.Reconnected,
-            result.State.ReconnectProblem);
+            result.State.ReconnectProblem,
+            result.State.ReplugRecommended);
     }
 
     public async Task<HideOutcome> RestoreAsync()
@@ -140,7 +150,7 @@ public sealed class HidHideManager
             var request = JsonSerializer.Deserialize<HelperRequest>(File.ReadAllText(args[1]), BehavePadJson.Options)
                           ?? throw new InvalidDataException("Empty helper request.");
             result = args[0] == HideArgument
-                ? new HelperResult(true, null, ApplyHide(request.ApplicationPath, request.InstanceIds))
+                ? new HelperResult(true, null, ApplyHide(request.ApplicationPath, request.InstanceIds, request.AllowRestart))
                 : Restore(request);
         }
         catch (Exception ex)
@@ -195,7 +205,7 @@ public sealed class HidHideManager
         return new HelperResult(true, null, null);
     }
 
-    private static HideState ApplyHide(string applicationPath, IReadOnlyList<string> instanceIds)
+    private static HideState ApplyHide(string applicationPath, IReadOnlyList<string> instanceIds, bool allowRestart)
     {
         var service = new HidHideControlService();
         if (service.IsAppListInverted)
@@ -203,13 +213,12 @@ public sealed class HidHideManager
             throw new InvalidOperationException("HidHide is set to an inverted application list. Turn that off in HidHide Configuration Client first.");
         }
 
-        // Restarting the controller needs administrator rights, and it is the only thing that makes a game or a
-        // service that already opened the controller let go of it. HidHide itself accepts changes from a normal
-        // account on some PCs, so ask for rights before changing anything: hiding without the restart would leave
-        // a cloak up that nothing was ever forced to read again.
-        if (NeedsReconnect(service, instanceIds) && !IsElevated)
+        // Only restarting the controller needs administrator rights, so ask for them before changing anything, and
+        // only when a restart is actually going to happen. HidHide itself accepts changes from a normal account on
+        // most PCs, so the default path asks for nothing.
+        if (HidePlan.ShouldRestart(NeedsReconnect(service, instanceIds), allowRestart) && !IsElevated)
         {
-            throw new UnauthorizedAccessException("Hiding the controller needs administrator rights.");
+            throw new UnauthorizedAccessException("Restarting the controller needs administrator rights.");
         }
 
         if (!service.ApplicationPaths.Contains(applicationPath, StringComparer.OrdinalIgnoreCase))
@@ -228,19 +237,22 @@ public sealed class HidHideManager
 
         var filterActive = IsFilterLoaded(instanceIds);
 
-        // HidHide only turns away new opens, so whatever already holds the controller keeps reading it: a game
-        // that started first, or GameInputSvc, which runs from boot. Restarting the device node is the only way
-        // to make them let go and ask again under the cloak, so do it whenever this run changed what HidHide
-        // blocks, not only when the filter was missing altogether.
-        var reconnected = false;
+        // HidHide only turns away new opens, so whatever already holds the controller keeps reading it: a game that
+        // started first, or GameInputSvc, which runs from boot. Only restarting the controller makes them let go and
+        // ask again under the cloak, and that is the user's call, because on some controllers the device comes back
+        // without the half that games and BehavePad read. Unasked, BehavePad says to unplug it instead.
+        var changed = !filterActive || activated || added.Count > 0;
+        bool? restartSucceeded = null;
+        var controllerReturned = false;
         string? reconnectProblem = null;
-        if (!filterActive || activated || added.Count > 0)
+
+        if (HidePlan.ShouldRestart(changed, allowRestart))
         {
             reconnectProblem = Reconnect(instanceIds);
-            if (reconnectProblem is null)
+            restartSucceeded = reconnectProblem is null;
+            if (restartSucceeded == true)
             {
-                reconnected = true;
-                var currentIds = WaitForFilter(out filterActive, out var controllerReturned);
+                var currentIds = WaitForFilter(out filterActive, out controllerReturned);
                 if (!controllerReturned)
                 {
                     reconnectProblem = "your controller did not come back after BehavePad restarted it";
@@ -251,11 +263,15 @@ public sealed class HidHideManager
             }
         }
 
+        var followUp = HidePlan.Decide(changed, allowRestart, restartSucceeded, controllerReturned);
         return new HideState(added, activated, DateTimeOffset.Now)
         {
             FilterActive = filterActive,
-            Reconnected = reconnected,
-            ReconnectProblem = reconnectProblem,
+            Reconnected = followUp == HideFollowUp.Restarted,
+            ReplugRecommended = followUp == HideFollowUp.ReplugRecommended,
+            ReconnectProblem = followUp == HideFollowUp.RestartFailed
+                ? reconnectProblem ?? "BehavePad could not restart your controller"
+                : null,
         };
     }
 
@@ -439,7 +455,7 @@ public sealed class HidHideManager
             {
                 if (argument == HideArgument)
                 {
-                    return ApplyHide(request.ApplicationPath, request.InstanceIds);
+                    return ApplyHide(request.ApplicationPath, request.InstanceIds, request.AllowRestart);
                 }
 
                 if (request.Restore is not null)

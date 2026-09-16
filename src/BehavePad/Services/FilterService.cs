@@ -284,7 +284,7 @@ public sealed partial class FilterService : ObservableObject
         }
 
         var devices = await Task.Run(ControllerDevices.FindPhysicalControllerNodes);
-        var outcome = await HidHide.HideAsync(devices);
+        var outcome = await HidHide.HideAsync(devices, _settings.Settings.RestartControllerWhenHiding);
         PhysicalHidden = outcome.Kind == HideResultKind.Done && outcome.FilterActive;
 
         if (outcome.Reconnected && _pad is { } pad && _controller.XInput is { } xinput)
@@ -319,6 +319,12 @@ public sealed partial class FilterService : ObservableObject
         else if (outcome.Reconnected)
         {
             SetMessage("Filter is on. BehavePad reconnected your controller so HidHide could hide it from games. Restart any game that was already open.");
+        }
+        else if (outcome.ReplugRecommended)
+        {
+            // Hiding only applies from the next time something opens the controller, and BehavePad is not allowed
+            // to force that, so say what the user can do instead of quietly leaving a game reading the drift.
+            SetMessage("Filter is on. If a game was already open, unplug your controller and plug it back in so it stops reading the original, then restart the game.");
         }
         else
         {

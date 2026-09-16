@@ -79,7 +79,7 @@ Hiding a controller needs administrator rights, so Windows asks for permission w
 
 - **BehavePad couldn't install the drivers.** Check your internet connection and choose **Install drivers** on the Setup page again. If another installation is running, wait for it to finish first. You can also install ViGEmBus and HidHide yourself from the links on the Setup page.
 - **A game can't see my controller after BehavePad closed unexpectedly.** Open BehavePad. It restores the controller on startup. You can also use **Restore controller visibility** in Setup.
-- **The game still reacts to drift.** Check that HidHide is installed and that the Live filter page says the original controller is hidden. Some games read both controllers when the original stays visible.
+- **The game still reacts to drift.** A game that was already open when the filter turned on keeps reading your original controller, because hiding only takes effect the next time something opens it. Unplug the controller, plug it back in, then restart the game. Check too that HidHide is installed and that the Live filter page says the original controller is hidden.
 - **The virtual controller shows up as player 2.** That is expected while the original controller is connected. Most games accept input from any player slot.
 - **Some games that use Microsoft's GameInput API may still see the original controller.** That is a HidHide limitation.
 - **My stick got worse.** Run the drift test again. Each test replaces the previous filter.
