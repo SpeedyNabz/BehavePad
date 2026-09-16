@@ -1,5 +1,7 @@
 using System.Net;
 using System.Security.Cryptography;
+using System.Text.Json;
+using BehavePad.Core.Storage;
 using BehavePad.Core.Update;
 
 namespace BehavePad.Core.Tests;
@@ -175,6 +177,71 @@ public sealed class UpdateTests : IDisposable
         await downloader.DownloadAsync(Candidate());
 
         Assert.Equal(1, server.Requests);
+    }
+
+    /// <summary>
+    /// What the GitHub API actually returns for this repository, trimmed to the fields BehavePad reads. Every other
+    /// test here builds the release in C#, so a wrong JsonPropertyName would keep them all passing while the updater
+    /// quietly refused every real release.
+    /// </summary>
+    private const string RealReleaseJson = """
+        {
+          "tag_name": "v1.2.0",
+          "name": "BehavePad 1.2.0",
+          "draft": false,
+          "prerelease": false,
+          "html_url": "https://github.com/SpeedyNabz/BehavePad/releases/tag/v1.2.0",
+          "body": "Release notes.",
+          "assets": [
+            {
+              "name": "BehavePad.exe",
+              "size": 156607082,
+              "browser_download_url": "https://github.com/SpeedyNabz/BehavePad/releases/download/v1.2.0/BehavePad.exe",
+              "digest": "sha256:ed42e92f41ae031a160804d29cf8dd43d4eb0b59127ed0cd0370fd830c0c1390"
+            }
+          ]
+        }
+        """;
+
+    [Fact]
+    public void A_real_release_payload_maps_onto_the_fields_the_update_check_reads()
+    {
+        var release = JsonSerializer.Deserialize<GitHubRelease>(RealReleaseJson, BehavePadJson.Options);
+
+        Assert.NotNull(release);
+        Assert.Equal("v1.2.0", release!.TagName);
+        Assert.False(release.Draft);
+        Assert.False(release.Prerelease);
+        Assert.Equal(new Uri("https://github.com/SpeedyNabz/BehavePad/releases/tag/v1.2.0"), release.HtmlUrl);
+
+        var asset = Assert.Single(release.Assets);
+        Assert.Equal(UpdateCheck.AssetName, asset.Name);
+        Assert.Equal(156_607_082L, asset.Size);
+        Assert.Equal("sha256:ed42e92f41ae031a160804d29cf8dd43d4eb0b59127ed0cd0370fd830c0c1390", asset.Digest);
+        Assert.NotNull(asset.DownloadUrl);
+        Assert.True(UpdateCheck.IsTrusted(asset.DownloadUrl!));
+    }
+
+    [Fact]
+    public void A_real_release_is_offered_to_an_older_build()
+    {
+        var release = JsonSerializer.Deserialize<GitHubRelease>(RealReleaseJson, BehavePadJson.Options);
+
+        var decision = UpdateCheck.Evaluate(release, new Version(1, 1, 0));
+
+        Assert.Equal(UpdateStatus.Available, decision.Status);
+        Assert.Equal("1.2.0", decision.Candidate!.VersionText);
+        Assert.Equal("ed42e92f41ae031a160804d29cf8dd43d4eb0b59127ed0cd0370fd830c0c1390", decision.Candidate.Sha256);
+        Assert.Equal("BehavePad-1.2.0.exe", decision.Candidate.FileName);
+    }
+
+    [Fact]
+    public void A_real_release_is_not_offered_to_the_same_or_a_newer_build()
+    {
+        var release = JsonSerializer.Deserialize<GitHubRelease>(RealReleaseJson, BehavePadJson.Options);
+
+        Assert.Equal(UpdateStatus.UpToDate, UpdateCheck.Evaluate(release, new Version(1, 2, 0)).Status);
+        Assert.Equal(UpdateStatus.UpToDate, UpdateCheck.Evaluate(release, new Version(1, 3, 0)).Status);
     }
 
     private static string Sha256(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
