@@ -205,8 +205,13 @@ public sealed class HidHideManager
         }
 
         var filterActive = IsFilterLoaded(instanceIds);
+
+        // HidHide only turns away new opens, so whatever already holds the controller keeps reading it: a game
+        // that started first, or GameInputSvc, which runs from boot. Restarting the device node is the only way
+        // to make them let go and ask again under the cloak, so do it whenever this run changed what HidHide
+        // blocks, not only when the filter was missing altogether.
         var reconnected = false;
-        if (!filterActive && Reconnect(instanceIds))
+        if ((!filterActive || activated || added.Count > 0) && Reconnect(instanceIds))
         {
             reconnected = true;
             var currentIds = WaitForFilter(out filterActive);

@@ -311,7 +311,7 @@ public sealed partial class FilterService : ObservableObject
         }
         else if (outcome.Reconnected)
         {
-            SetMessage("Filter is on. BehavePad reconnected your controller once so HidHide could hide it from games.");
+            SetMessage("Filter is on. BehavePad reconnected your controller so HidHide could hide it from games. Restart any game that was already open.");
         }
         else
         {

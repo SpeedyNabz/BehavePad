@@ -250,7 +250,65 @@
                 </StackPanel>
             </Border>
 
-            <TextBlock Margin="0,20,0,0" Style="{StaticResource CaptionText}" Text="{Binding VersionText}" />
+            <!-- Updates -->
+            <TextBlock Margin="0,30,0,12" Style="{StaticResource H2Text}" Text="Updates" />
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <CheckBox IsChecked="{Binding AutomaticUpdates}" Style="{StaticResource SwitchStyle}">
+                        <StackPanel>
+                            <TextBlock FontWeight="SemiBold" Text="Keep BehavePad up to date" />
+                            <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="Checks once a day, downloads the new release in the background, and installs it the next time you exit BehavePad. Your settings, last test and filter are kept." />
+                        </StackPanel>
+                    </CheckBox>
+                    <Border Style="{StaticResource Divider}" />
+                    <DockPanel>
+                        <Button VerticalAlignment="Center"
+                                controls:Ui.Glyph="&#xE72C;"
+                                Command="{Binding CheckForUpdatesCommand}"
+                                Content="Check now"
+                                DockPanel.Dock="Right"
+                                Style="{StaticResource GhostButton}" />
+                        <StackPanel Margin="0,0,16,0">
+                            <TextBlock FontWeight="SemiBold" Text="{Binding VersionText}" />
+                            <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}">
+                                <Run Text="Updates come from BehavePad's" />
+                                <Hyperlink Command="{Binding OpenReleasePageCommand}" Foreground="{StaticResource AccentBrush}">GitHub releases</Hyperlink><Run Text=". Every download has to match the checksum GitHub published before BehavePad will run it." />
+                            </TextBlock>
+                        </StackPanel>
+                    </DockPanel>
+
+                    <StackPanel Margin="0,4,0,0">
+                        <Button Margin="0,14,0,0"
+                                HorizontalAlignment="Left"
+                                controls:Ui.Glyph="&#xE777;"
+                                Command="{Binding InstallUpdateCommand}"
+                                Content="Restart and install"
+                                Style="{StaticResource PrimaryButton}"
+                                Visibility="{Binding Update.IsReady, Converter={StaticResource BoolToVisibility}}" />
+                        <ProgressBar Margin="0,14,0,0"
+                                     Maximum="1"
+                                     Style="{StaticResource ThinProgress}"
+                                     Value="{Binding Update.Progress, Mode=OneWay}"
+                                     Visibility="{Binding Update.IsBusy, Converter={StaticResource BoolToVisibility}}" />
+                        <TextBlock Margin="0,10,0,0"
+                                   FontWeight="SemiBold"
+                                   Text="{Binding Update.Status}"
+                                   TextWrapping="Wrap"
+                                   Visibility="{Binding Update.Status, Converter={StaticResource NullToVisibility}}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Update.StatusIsError}" Value="True">
+                                            <Setter Property="Foreground" Value="{StaticResource DriftBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

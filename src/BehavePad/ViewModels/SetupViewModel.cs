@@ -34,6 +34,9 @@ public sealed partial class SetupViewModel : ObservableObject, IPageViewModel
     private bool _useDemoController;
 
     [ObservableProperty]
+    private bool _automaticUpdates;
+
+    [ObservableProperty]
     private int _preferredSlot;
 
     [ObservableProperty]
@@ -58,6 +61,8 @@ public sealed partial class SetupViewModel : ObservableObject, IPageViewModel
     public DriverInfo HidHide => _shell.Filter.HidHideDriver;
 
     public DriverSetupService DriverSetup => _shell.Filter.DriverSetup;
+
+    public UpdateService Update => _shell.Update;
 
     /// <summary>True when a driver is missing. A driver that is installed but waiting for a restart has nothing left to install.</summary>
     public bool CanInstallDrivers => !Vigem.Ready || !HidHide.Installed;
@@ -118,6 +123,8 @@ public sealed partial class SetupViewModel : ObservableObject, IPageViewModel
 
     partial void OnUseDemoControllerChanged(bool value) => _ = SwitchControllerAsync(value);
 
+    partial void OnAutomaticUpdatesChanged(bool value) => Save(s => s with { AutomaticUpdates = value });
+
     private async Task SwitchControllerAsync(bool useDemo)
     {
         if (_loading)
@@ -171,6 +178,27 @@ public sealed partial class SetupViewModel : ObservableObject, IPageViewModel
         await _shell.Filter.InstallDriversAsync();
         RaiseDriverState();
     }
+
+    [RelayCommand]
+    private async Task CheckForUpdatesAsync() => await _shell.Update.CheckAsync(automatic: false);
+
+    [RelayCommand]
+    private async Task InstallUpdateAsync()
+    {
+        // Stop filtering first, so the controller is visible to games again before BehavePad goes away.
+        if (_shell.Filter.IsOn)
+        {
+            await _shell.Filter.StopAsync();
+        }
+
+        if (_shell.Update.TryApply(relaunch: true))
+        {
+            Application.Current.Shutdown();
+        }
+    }
+
+    [RelayCommand]
+    private void OpenReleasePage() => OpenExternal(_shell.Update.ReleasePage.ToString());
 
     [RelayCommand]
     private static void OpenVigemDownload() => OpenExternal(DriverStatus.VigemDownloadUrl);
@@ -257,6 +285,7 @@ public sealed partial class SetupViewModel : ObservableObject, IPageViewModel
             LaunchAtSignIn = settings.LaunchAtSignIn;
             UseDemoController = _shell.Controller.IsDemo;
             PreferredSlot = settings.PreferredSlot;
+            AutomaticUpdates = settings.AutomaticUpdates;
         }
         finally
         {

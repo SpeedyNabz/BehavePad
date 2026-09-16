@@ -62,7 +62,7 @@ With a shaped zone you can also turn on **Learn drift while you play**. It grows
 
 BehavePad downloads the official installers from GitHub, checks that each one is exactly the file it expects, and runs them silently after Windows asks for permission once. If you'd rather install the drivers yourself, the Setup page links to both.
 
-To update, exit BehavePad from its notification area icon, replace `BehavePad.exe` with the new one and start it again. Your settings, last test and filter are kept.
+BehavePad keeps itself up to date. It checks its GitHub releases once a day, downloads the new build in the background, checks it against the checksum GitHub published, and installs it the next time you exit. To update on the spot, or to turn this off, see **Updates** on the Setup page. Your settings, last test and filter are kept.
 
 No controller at hand? Turn on **Use the demo controller** in Setup. It has right stick drift, a creeping left trigger and a Y button that presses itself.
 
