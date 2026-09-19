@@ -64,7 +64,7 @@
                         <CheckBox Command="{Binding ToggleFilterCommand}" IsChecked="{Binding Filter.IsOn, Mode=OneWay}" Style="{StaticResource SwitchStyle}">
                             <StackPanel>
                                 <TextBlock FontWeight="SemiBold" Text="{Binding FilterStatusText}" />
-                                <TextBlock Margin="0,2,0,0" FontSize="12" Foreground="{StaticResource TextMutedBrush}" Text="for games" />
+                                <TextBlock Margin="0,2,0,0" FontSize="12" Foreground="{StaticResource TextMutedBrush}" Text="{Binding FilterCaptionText}" />
                             </StackPanel>
                         </CheckBox>
                     </Border>
@@ -92,7 +92,7 @@
                     </DockPanel>
                 </StackPanel>
 
-                <StackPanel>
+                <StackPanel IsEnabled="{Binding CanNavigate}">
                     <RadioButton controls:Ui.Glyph="&#xE80F;" Content="Overview" IsChecked="{Binding CurrentPage, Converter={StaticResource EnumEquals}, ConverterParameter=Overview}" Style="{StaticResource NavItem}" />
                     <RadioButton controls:Ui.Glyph="&#xE9D9;" Content="Drift test" IsChecked="{Binding CurrentPage, Converter={StaticResource EnumEquals}, ConverterParameter=Test}" Style="{StaticResource NavItem}" />
                     <RadioButton controls:Ui.Glyph="&#xE7FC;" Content="Live filter" IsChecked="{Binding CurrentPage, Converter={StaticResource EnumEquals}, ConverterParameter=Live}" Style="{StaticResource NavItem}" />

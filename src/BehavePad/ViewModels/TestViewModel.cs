@@ -25,7 +25,7 @@ public enum RestLength
 /// <summary>Guides the user through the hands-off rest check, the snap-back check, and the results.</summary>
 public sealed partial class TestViewModel : ObservableObject, IPageViewModel
 {
-    public const int TargetReleases = 6;
+    public const int TargetReleases = 4;
     private const double CountdownMs = 3000;
     private const int MaxCloudPoints = 700;
 
@@ -49,6 +49,7 @@ public sealed partial class TestViewModel : ObservableObject, IPageViewModel
     private bool _choosing;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsRunning))]
     private TestStep _step;
 
     [ObservableProperty]
@@ -152,6 +153,11 @@ public sealed partial class TestViewModel : ObservableObject, IPageViewModel
         _ => 10,
     };
 
+    /// <summary>True while a measurement is in progress, which nothing should interrupt by accident.</summary>
+    public bool IsRunning => Step is TestStep.Countdown or TestStep.Resting or TestStep.SnapBack;
+
+    public string LengthText => $"Takes about {RestSeconds:0} seconds, plus a few stick flicks.";
+
     public int ReleaseTarget => TargetReleases;
 
     public bool CanBegin => _shell.Controller.IsConnected;
@@ -200,15 +206,10 @@ public sealed partial class TestViewModel : ObservableObject, IPageViewModel
 
     public double RightResultZoom => Report is null ? 1 : Describe.PlotZoom(Report.RightStick, Proposed?.RightStick);
 
-    public string LeftRoundLabel => Proposed is null ? "Round" : Describe.ShapeLabel(Proposed.LeftStick, ZoneShape.Circle);
-
-    public string LeftShapedLabel => Proposed is null ? "Shaped" : Describe.ShapeLabel(Proposed.LeftStick, ZoneShape.Fitted);
-
-    public string RightRoundLabel => Proposed is null ? "Round" : Describe.ShapeLabel(Proposed.RightStick, ZoneShape.Circle);
-
-    public string RightShapedLabel => Proposed is null ? "Shaped" : Describe.ShapeLabel(Proposed.RightStick, ZoneShape.Fitted);
-
-    public string? ShapeHint => Report is null || Proposed is null ? null : Describe.ShapeHint(Report, Proposed);
+    public string? ShapeHint =>
+        Report is null || Proposed is null || Describe.ShapeHint(Report, Proposed) is not { } hint
+            ? null
+            : $"{hint} Open Live filter to switch that stick to a shaped zone.";
 
     public Severity TriggerSeverity => Report is null ? Severity.Healthy : Describe.Triggers(Report).Severity;
 
@@ -267,9 +268,9 @@ public sealed partial class TestViewModel : ObservableObject, IPageViewModel
     public void OnNavigatedFrom()
     {
         _shell.Controller.FrameUpdated -= OnFrame;
-        if (Step is TestStep.Countdown or TestStep.Resting or TestStep.SnapBack)
+        if (IsRunning)
         {
-            Abort(null);
+            Abort("The test stopped when you left the page, so nothing was measured. Start it again when you are ready.");
         }
     }
 
@@ -319,6 +320,14 @@ public sealed partial class TestViewModel : ObservableObject, IPageViewModel
     {
         Report = null;
         Step = TestStep.Intro;
+    }
+
+    /// <summary>Offered on the results, where a borderline reading is the reason to sit still for longer.</summary>
+    [RelayCommand]
+    private void TestForLonger()
+    {
+        Length = RestLength.Thorough;
+        RunAgain();
     }
 
     [RelayCommand]

@@ -155,10 +155,10 @@
                         </StackPanel>
                     </CheckBox>
                     <Border Style="{StaticResource Divider}" />
-                    <CheckBox IsChecked="{Binding StartFilterOnLaunch}" Style="{StaticResource SwitchStyle}">
+                    <CheckBox IsChecked="{Binding AutoFilterWhenConnected}" Style="{StaticResource SwitchStyle}">
                         <StackPanel>
-                            <TextBlock FontWeight="SemiBold" Text="Turn the filter on when BehavePad starts" />
-                            <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="Uses your saved filter automatically." />
+                            <TextBlock FontWeight="SemiBold" Text="Keep the filter on whenever my controller is connected" />
+                            <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="Turns on by itself once your tested controller is there, whether that is at sign-in or hours later. It packs away again when the controller has been gone a while." />
                         </StackPanel>
                     </CheckBox>
                     <Border Style="{StaticResource Divider}" />

@@ -54,15 +54,9 @@ public partial class App
 
             await WaitUntilAsync(() => shell.Test.Step == TestStep.Results, TimeSpan.FromSeconds(30));
             await Task.Delay(900);
-            CaptureTall(directory, "06-test-results.png", 1900);
+            CaptureTall(directory, "06-test-results.png", 1480);
 
-            shell.Test.LeftShape = ZoneShape.Fitted;
-            shell.Test.RightShape = ZoneShape.Fitted;
-            await Task.Delay(500);
-            CaptureTall(directory, "06b-test-results-shaped.png", 1900);
-            shell.Test.LeftShape = ZoneShape.Circle;
-            shell.Test.RightShape = ZoneShape.Circle;
-
+            // Each stick's shape is picked on the live view now, so the results only exercise the protection preset.
             shell.Test.Level = ProtectionLevel.Maximum;
             await Task.Delay(400);
             shell.Test.Level = ProtectionLevel.Balanced;

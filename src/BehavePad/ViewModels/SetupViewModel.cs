@@ -25,7 +25,7 @@ public sealed partial class SetupViewModel : ObservableObject, IPageViewModel
     private bool _minimizeToTray;
 
     [ObservableProperty]
-    private bool _startFilterOnLaunch;
+    private bool _autoFilterWhenConnected;
 
     [ObservableProperty]
     private bool _launchAtSignIn;
@@ -108,7 +108,7 @@ public sealed partial class SetupViewModel : ObservableObject, IPageViewModel
 
     partial void OnMinimizeToTrayChanged(bool value) => Save(s => s with { MinimizeToTray = value });
 
-    partial void OnStartFilterOnLaunchChanged(bool value) => Save(s => s with { StartFilterOnLaunch = value });
+    partial void OnAutoFilterWhenConnectedChanged(bool value) => Save(s => s with { AutoFilterWhenConnected = value });
 
     partial void OnLaunchAtSignInChanged(bool value)
     {
@@ -281,7 +281,7 @@ public sealed partial class SetupViewModel : ObservableObject, IPageViewModel
             var settings = _shell.Settings.Settings;
             HidePhysicalController = settings.HidePhysicalController;
             MinimizeToTray = settings.MinimizeToTray;
-            StartFilterOnLaunch = settings.StartFilterOnLaunch;
+            AutoFilterWhenConnected = settings.AutoFilterWhenConnected;
             LaunchAtSignIn = settings.LaunchAtSignIn;
             UseDemoController = _shell.Controller.IsDemo;
             PreferredSlot = settings.PreferredSlot;

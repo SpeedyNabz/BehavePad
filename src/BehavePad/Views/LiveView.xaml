@@ -257,6 +257,17 @@
                         </StackPanel>
                     </DockPanel>
 
+                    <TextBlock Margin="0,12,0,0"
+                               Style="{StaticResource CaptionText}"
+                               Text="A round zone is a circle around the stick's real center. A shaped zone hugs every spot the stick drifted or sprang back to, so less of the stick is ignored, though diagonal pushes along a long drift can bend slightly."
+                               TextWrapping="Wrap" />
+                    <TextBlock Margin="0,6,0,0"
+                               Foreground="{StaticResource WarningBrush}"
+                               Style="{StaticResource CaptionText}"
+                               Text="{Binding ShapeHint}"
+                               TextWrapping="Wrap"
+                               Visibility="{Binding ShapeHint, Converter={StaticResource NullToVisibility}}" />
+
                     <!-- Left stick -->
                     <DockPanel Margin="0,20,0,0">
                         <StackPanel VerticalAlignment="Center" DockPanel.Dock="Right" Orientation="Horizontal">
@@ -374,29 +385,32 @@
 
                     <Border Height="1" Margin="0,16" Background="{StaticResource StrokeSubtleBrush}" />
 
-                    <CheckBox IsChecked="{Binding AdaptiveCentering}" Style="{StaticResource SwitchStyle}" Visibility="{Binding AnyCircle, Converter={StaticResource BoolToVisibility}}">
-                        <StackPanel>
-                            <TextBlock FontWeight="SemiBold" Text="Adaptive drift guard" />
-                            <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="For sticks with a round zone. Follows the stick's resting spot if it shifts during long sessions. It can also cancel a very small tilt held perfectly still for a few seconds, so it starts off." />
-                        </StackPanel>
-                    </CheckBox>
-
-                    <StackPanel Margin="0,12,0,0" Visibility="{Binding AnyFitted, Converter={StaticResource BoolToVisibility}}">
-                        <CheckBox IsChecked="{Binding LearnZone}" Style="{StaticResource SwitchStyle}">
+                    <ToggleButton x:Name="AdvancedToggle" Content="Advanced drift handling" Style="{StaticResource DisclosureToggle}" />
+                    <StackPanel Margin="0,10,0,0" Visibility="{Binding IsChecked, ElementName=AdvancedToggle, Converter={StaticResource BoolToVisibility}}">
+                        <CheckBox IsChecked="{Binding AdaptiveCentering}" Style="{StaticResource SwitchStyle}" Visibility="{Binding AnyCircle, Converter={StaticResource BoolToVisibility}}">
                             <StackPanel>
-                                <TextBlock FontWeight="SemiBold" Text="Learn drift while you play" />
-                                <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="For sticks with a shaped zone. Grows the zone when a stick you let go of creeps somewhere new while every other control is idle. The same spot has to come back after two separate releases, and growth stays within 30% of the tested zone. A slow, deliberate push made right after letting go can still be learned, so it starts off." />
+                                <TextBlock FontWeight="SemiBold" Text="Adaptive drift guard" />
+                                <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="For sticks with a round zone. Follows the stick's resting spot if it shifts during long sessions. It can also cancel a very small tilt held perfectly still for a few seconds, so it starts off." />
                             </StackPanel>
                         </CheckBox>
-                        <DockPanel Margin="0,10,0,0">
-                            <Button controls:Ui.Glyph="&#xE74D;"
-                                    Command="{Binding ForgetLearnedCommand}"
-                                    Content="Forget what it learned"
-                                    DockPanel.Dock="Right"
-                                    IsEnabled="{Binding HasLearned}"
-                                    Style="{StaticResource GhostButton}" />
-                            <TextBlock VerticalAlignment="Center" Style="{StaticResource CaptionText}" Text="{Binding LearnedStatusText}" />
-                        </DockPanel>
+
+                        <StackPanel Margin="0,12,0,0" Visibility="{Binding AnyFitted, Converter={StaticResource BoolToVisibility}}">
+                            <CheckBox IsChecked="{Binding LearnZone}" Style="{StaticResource SwitchStyle}">
+                                <StackPanel>
+                                    <TextBlock FontWeight="SemiBold" Text="Learn drift while you play" />
+                                    <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="For sticks with a shaped zone. Grows the zone when a stick you let go of creeps somewhere new while every other control is idle. The same spot has to come back after two separate releases, and growth stays within 30% of the tested zone. A slow, deliberate push made right after letting go can still be learned, so it starts off." />
+                                </StackPanel>
+                            </CheckBox>
+                            <DockPanel Margin="0,10,0,0">
+                                <Button controls:Ui.Glyph="&#xE74D;"
+                                        Command="{Binding ForgetLearnedCommand}"
+                                        Content="Forget what it learned"
+                                        DockPanel.Dock="Right"
+                                        IsEnabled="{Binding HasLearned}"
+                                        Style="{StaticResource GhostButton}" />
+                                <TextBlock VerticalAlignment="Center" Style="{StaticResource CaptionText}" Text="{Binding LearnedStatusText}" />
+                            </DockPanel>
+                        </StackPanel>
                     </StackPanel>
 
                     <TextBlock Margin="0,14,0,0" Style="{StaticResource CaptionText}" Text="{Binding PollRateText}" />

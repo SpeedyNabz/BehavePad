@@ -39,6 +39,8 @@ public sealed partial class ShellViewModel : ObservableObject
         Setup = new SetupViewModel(this);
 
         Filter.PropertyChanged += OnFilterChanged;
+        Controller.PropertyChanged += OnControllerChanged;
+        Test.PropertyChanged += OnTestChanged;
         Overview.OnNavigatedTo();
     }
 
@@ -60,13 +62,22 @@ public sealed partial class ShellViewModel : ObservableObject
 
     public IPageViewModel CurrentViewModel => PageFor(CurrentPage);
 
+    /// <summary>False while the drift test is measuring, so a stray click cannot throw the run away.</summary>
+    public bool CanNavigate => !Test.IsRunning;
+
     public string FilterStatusText => Filter.State switch
     {
         FilterState.On => "Filter on",
         FilterState.Starting => "Turning on",
         FilterState.Stopping => "Turning off",
-        _ => "Filter off",
+        _ => Filter.IsArmed && !Controller.IsConnected ? "Waiting for controller" : "Filter off",
     };
+
+    /// <summary>The line under the switch, which explains an armed filter that has nothing to filter yet.</summary>
+    public string FilterCaptionText =>
+        Filter.State == FilterState.Off && Filter.IsArmed && !Controller.IsConnected
+            ? "Turns on by itself"
+            : "for games";
 
     partial void OnCurrentPageChanged(AppPage oldValue, AppPage newValue)
     {
@@ -112,9 +123,31 @@ public sealed partial class ShellViewModel : ObservableObject
 
     private void OnFilterChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(FilterService.State))
+        if (e.PropertyName is nameof(FilterService.State) or nameof(FilterService.IsArmed))
         {
-            OnPropertyChanged(nameof(FilterStatusText));
+            RaiseFilterStatus();
         }
+    }
+
+    private void OnTestChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(TestViewModel.IsRunning))
+        {
+            OnPropertyChanged(nameof(CanNavigate));
+        }
+    }
+
+    private void OnControllerChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ControllerService.IsConnected))
+        {
+            RaiseFilterStatus();
+        }
+    }
+
+    private void RaiseFilterStatus()
+    {
+        OnPropertyChanged(nameof(FilterStatusText));
+        OnPropertyChanged(nameof(FilterCaptionText));
     }
 }

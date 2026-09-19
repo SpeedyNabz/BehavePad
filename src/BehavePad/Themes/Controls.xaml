@@ -265,6 +265,11 @@
                             <Setter TargetName="Glyph" Property="Foreground" Value="{StaticResource AccentBrush}" />
                             <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
                         </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Chrome" Property="Background" Value="Transparent" />
+                            <Setter Property="Opacity" Value="0.4" />
+                            <Setter Property="Cursor" Value="Arrow" />
+                        </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
@@ -469,6 +474,43 @@
                         <Trigger Property="IsChecked" Value="True">
                             <Setter TargetName="Chrome" Property="Background" Value="{StaticResource AccentSoftBrush}" />
                             <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Disclosure: a header row that reveals settings most people never need -->
+    <Style x:Key="DisclosureToggle" TargetType="ToggleButton">
+        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="Chrome" Padding="10,7" Background="Transparent" CornerRadius="10">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="Chevron"
+                                       Width="14"
+                                       VerticalAlignment="Center"
+                                       FontFamily="{StaticResource IconFont}"
+                                       FontSize="11"
+                                       Text="&#xE76C;" />
+                            <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Chevron" Property="Text" Value="&#xE70D;" />
+                            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{StaticResource SurfaceRaisedBrush}" />
+                            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

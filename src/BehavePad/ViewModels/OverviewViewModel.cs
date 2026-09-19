@@ -26,6 +26,8 @@ public sealed partial class OverviewViewModel : ObservableObject, IPageViewModel
     [ObservableProperty]
     private string _phantomText = "0";
 
+    private bool _wasConnected;
+
     public OverviewViewModel(ShellViewModel shell)
     {
         _shell = shell;
@@ -43,6 +45,11 @@ public sealed partial class OverviewViewModel : ObservableObject, IPageViewModel
 
     public bool IsFilterOn => _shell.Filter.IsOn;
 
+    /// <summary>True when BehavePad will turn the filter on by itself once the controller is there.</summary>
+    public bool IsArmed => _shell.Filter.IsArmed;
+
+    public string OffPillText => IsArmed && !_shell.Controller.IsConnected ? "Waiting for your controller" : "Filter off";
+
     public bool MascotHappy => IsFilterOn || Report is null || Report.Overall == Severity.Healthy;
 
     public string Headline =>
@@ -57,13 +64,16 @@ public sealed partial class OverviewViewModel : ObservableObject, IPageViewModel
                 : "Games can read BehavePad's clean virtual controller. Hide the original in Setup for best results."
         : Report is null
             ? "A hands-off check finds stick drift, trigger creep and phantom button presses. Then BehavePad builds a filter for this exact controller."
+        : IsArmed
+            ? "Your filter is ready. BehavePad turns it on by itself whenever this controller is connected."
         : Report.Overall == Severity.Healthy
-            ? "Nothing needs fixing. Turn the filter on anyway if you want a safety net while you play."
-            : "Turn the filter on to keep this unintended input out of your games.";
+            ? "Nothing needs fixing. Turn the filter on from the sidebar if you want a safety net while you play."
+            : "Turn the filter on from the sidebar to keep this unintended input out of your games.";
 
-    public string PrimaryText => Report is null ? "Start drift test" : IsFilterOn ? "Turn filter off" : "Turn filter on";
+    public string PrimaryText => HasReport ? "Open live filter" : "Start drift test";
 
-    public string PrimaryGlyph => Report is null ? "" : IsFilterOn ? "" : "";
+    /// <summary>The same glyph the sidebar uses for wherever this button leads.</summary>
+    public string PrimaryGlyph => HasReport ? "" : "";
 
     public string? LastTestedText => Report is null
         ? null
@@ -95,7 +105,8 @@ public sealed partial class OverviewViewModel : ObservableObject, IPageViewModel
 
     public string ButtonDetail => Report is null ? "Run the drift test to check them." : Describe.Buttons(Report).Detail;
 
-    public bool ShowDriverCallout => !_shell.Filter.DriversReady;
+    /// <summary>Held back until a test has been run, so the first thing BehavePad asks for is not a permission prompt.</summary>
+    public bool ShowDriverCallout => HasReport && !_shell.Filter.DriversReady;
 
     public void OnNavigatedTo()
     {
@@ -107,15 +118,16 @@ public sealed partial class OverviewViewModel : ObservableObject, IPageViewModel
     public void OnNavigatedFrom() => _shell.Controller.FrameUpdated -= OnFrame;
 
     [RelayCommand]
-    private async Task PrimaryAsync()
+    private void Primary()
     {
-        if (!HasReport)
+        if (HasReport)
         {
-            _shell.CurrentPage = AppPage.Test;
-            return;
+            OpenLive();
         }
-
-        await _shell.ToggleFilterCommand.ExecuteAsync(null);
+        else
+        {
+            RunTest();
+        }
     }
 
     [RelayCommand]
@@ -133,6 +145,12 @@ public sealed partial class OverviewViewModel : ObservableObject, IPageViewModel
     private void OnFrame(object? sender, EventArgs e)
     {
         var frame = _shell.Controller.Frame;
+        if (frame.Connected != _wasConnected)
+        {
+            _wasConnected = frame.Connected;
+            OnPropertyChanged(nameof(OffPillText));
+            OnPropertyChanged(nameof(Subtext));
+        }
 
         // While filtering, the mascot shows what games receive, so a protected controller looks calm.
         var state = IsFilterOn ? frame.Output : frame.Raw;

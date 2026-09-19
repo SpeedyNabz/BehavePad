@@ -11,7 +11,7 @@ It runs on Windows 10 and 11 and works with any XInput controller: Xbox One, Xbo
 
 ## How it works
 
-1. **Test.** You set the controller down and let go. BehavePad records every stick, trigger and button for a few seconds. Then you flick each stick to the edge and release it six times, so BehavePad can see where worn springs come to rest.
+1. **Test.** You set the controller down and let go. BehavePad records every stick, trigger and button for a few seconds. Then you flick each stick to the edge and release it four times, so BehavePad can see where worn springs come to rest.
 2. **Build a filter.** BehavePad measures how far each stick sits from center, how much it wobbles, and how far its rest spot wanders. It then builds a filter for that exact controller:
    - a new center for each stick at its real rest position, with both edges still reaching full travel,
    - an ignore zone just big enough to cover the measured drift, with a smooth ramp so small movements still register. It is round by default, or shaped to the drift (see below),
@@ -19,6 +19,8 @@ It runs on Windows 10 and 11 and works with any XInput controller: Xbox One, Xbo
    - a trigger deadzone that covers any resting pressure,
    - a short press delay for buttons that pressed themselves, and a block for buttons that are stuck down.
 3. **Play.** BehavePad reads the real controller about 1,000 times a second and passes the cleaned input to a virtual Xbox controller. Games read the virtual one, and rumble from games is passed back to the real controller. HidHide hides the original controller from games, so the drift can't sneak back in.
+
+Once a controller has been tested, BehavePad turns the filter on by itself whenever that controller is connected, whether you plug it in at sign-in or hours later. It packs the filter away again when the controller has been gone for a while. Turn that off under **Behavior** in Setup if you would rather flip the switch yourself.
 
 You pick how much protection you want, and each stick can use its own preset:
 
@@ -34,7 +36,7 @@ Every value can be fine-tuned on the Live filter page, and changes apply instant
 
 A round zone has to reach the drift's farthest point in every direction. A stick that drifts along a line, for example one that springs back below center and then creeps far upward, needs a huge circle that swallows most of the stick.
 
-A shaped zone follows the drift instead. While the test runs, BehavePad draws an outline around every spot each stick sits or springs back to. It then adds a margin for the protection level you pick. Each push is measured from the nearest edge of that outline, so every direction still reaches full deflection. A shaped zone never ignores more of the stick than the largest round zone can. Each stick can use either shape. Pick them on the test results or on the Live filter page.
+A shaped zone follows the drift instead. While the test runs, BehavePad draws an outline around every spot each stick sits or springs back to. It then adds a margin for the protection level you pick. Each push is measured from the nearest edge of that outline, so every direction still reaches full deflection. A shaped zone never ignores more of the stick than the largest round zone can. Each stick can use either shape. Pick them under **Fine-tune** on the Live filter page.
 
 With a shaped zone you can also turn on **Learn drift while you play**. It grows the zone only when a stick you let go of creeps somewhere new while every other control is idle, and only after the same spot turns up following two separate releases. It never reaches more than 30% past the tested zone, and **Forget what it learned** undoes it. It stays off by default because a slow, deliberate push made right after letting go looks the same as creep.
 
@@ -48,14 +50,14 @@ With a shaped zone you can also turn on **Learn drift while you play**. It grows
 | --- | --- |
 | ![Rest check](docs/screenshots/test-resting.png) | ![Live filter](docs/screenshots/live.png) |
 
-| Results with a shaped zone | Live filter with a shaped zone |
+| Snap-back check | Live filter with a shaped zone |
 | --- | --- |
-| ![Drift test results with the shaped zone picked](docs/screenshots/test-results-shaped.png) | ![Live filter with shaped zone settings](docs/screenshots/live-shaped.png) |
+| ![Snap-back check](docs/screenshots/test-snapback.png) | ![Live filter with shaped zone settings](docs/screenshots/live-shaped.png) |
 
 ## Install
 
 1. Download `BehavePad.exe` from the [latest release](https://github.com/SpeedyNabz/BehavePad/releases/latest) and run it. Testing and the live preview work straight away.
-2. To filter inside games, BehavePad needs two free, open-source drivers from Nefarius Software Solutions. Choose **Install drivers** on the Overview or Setup page, or just turn the filter on, and BehavePad installs them for you.
+2. To filter inside games, BehavePad needs two free, open-source drivers from Nefarius Software Solutions. Just turn the filter on and BehavePad installs them for you, or choose **Install drivers** on the Setup page whenever you like.
    - [ViGEmBus](https://github.com/nefarius/ViGEmBus) creates the virtual controller games read. It is required.
    - [HidHide](https://github.com/nefarius/HidHide) hides the original controller from games. It is strongly recommended.
 3. Restart your PC if BehavePad asks you to.
@@ -68,9 +70,10 @@ No controller at hand? Turn on **Use the demo controller** in Setup. It has righ
 
 ## Everyday use
 
-- Turn the filter on from the sidebar switch, the Overview page, or the notification area icon.
+- Once you have tested a controller, BehavePad turns the filter on for you whenever that controller is connected. The sidebar switch reads **Waiting for controller** until it is.
+- To turn the filter on or off by hand, use the sidebar switch or the notification area icon.
 - Closing the window while the filter is on keeps BehavePad running in the notification area.
-- Setup can turn the filter on automatically and start BehavePad when you sign in.
+- Setup can also start BehavePad when you sign in, so a tested controller is covered from the moment you turn it on.
 - Restart any game that was already open when you turned the filter on, so it picks up the clean controller.
 
 Hiding a controller needs administrator rights, so Windows asks for permission when the filter turns on and off. Choose **Restart as administrator** in Setup to skip those prompts.

@@ -226,6 +226,12 @@ public sealed partial class LiveViewModel : ObservableObject, IPageViewModel
 
     public string ProfileStatusText => _shell.Settings.Profile is { } profile ? Describe.ProfileSummary(profile) : "Not built";
 
+    /// <summary>Warns when a stick still uses a circle that cannot safely cover its drift, but a shaped zone could.</summary>
+    public string? ShapeHint =>
+        _shell.Settings.LastReport is { } report && (_pending ?? _shell.Settings.Profile) is { } profile
+            ? Describe.ShapeHint(report, profile)
+            : null;
+
     public void OnNavigatedTo()
     {
         _shell.Controller.FrameUpdated += OnFrame;
@@ -442,6 +448,7 @@ public sealed partial class LiveViewModel : ObservableObject, IPageViewModel
         }
 
         LearnedStatusText = gains.Count == 0 ? "Nothing learned yet." : $"Learned {string.Join(" and ", gains)} beyond the tested zone.";
+        OnPropertyChanged(nameof(ShapeHint));
 
         string Caption(StickSide side)
         {
@@ -479,6 +486,7 @@ public sealed partial class LiveViewModel : ObservableObject, IPageViewModel
         OnPropertyChanged(nameof(PhysicalHidden));
         OnPropertyChanged(nameof(VirtualStatusText));
         OnPropertyChanged(nameof(ProfileStatusText));
+        OnPropertyChanged(nameof(ShapeHint));
     }
 
     private void OnFrame(object? sender, EventArgs e)

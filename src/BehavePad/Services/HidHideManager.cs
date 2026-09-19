@@ -55,6 +55,11 @@ public sealed class HidHideManager
     /// <summary>True when an earlier session hid controllers and never put them back, for example after a crash.</summary>
     public bool HasPendingRestore => _stateStore.Load() is { } state && (state.AddedInstanceIds.Count > 0 || state.ActivatedCloak);
 
+    /// <summary>The device nodes BehavePad has already hidden, so hiding is only asked for when something new turns up.</summary>
+    public IReadOnlySet<string> HiddenInstanceIds =>
+        _stateStore.Load()?.AddedInstanceIds.ToHashSet(StringComparer.OrdinalIgnoreCase)
+        ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
     public async Task<HideOutcome> HideAsync(IReadOnlyList<ControllerDevice> devices)
     {
         if (!DriverStatus.CheckHidHide().Ready)

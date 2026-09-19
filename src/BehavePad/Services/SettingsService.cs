@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using BehavePad.Core.Analysis;
 using BehavePad.Core.Engine;
 using BehavePad.Core.Filtering;
@@ -12,8 +13,16 @@ public sealed record AppSettings
 
     public bool MinimizeToTray { get; init; } = true;
 
-    /// <summary>On by default, so a controller that has already been tested is protected from the moment BehavePad opens.</summary>
-    public bool StartFilterOnLaunch { get; init; } = true;
+    /// <summary>
+    /// Keeps the filter on whenever a tested controller is connected, rather than only trying once at launch.
+    /// On by default, so a controller that has already been tested is protected without anyone asking.
+    /// </summary>
+    public bool AutoFilterWhenConnected { get; init; } = true;
+
+    /// <summary>The old name for <see cref="AutoFilterWhenConnected"/>, still read so existing settings carry over.</summary>
+    [JsonInclude]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? StartFilterOnLaunch { get; init; }
 
     public bool LaunchAtSignIn { get; init; }
 
@@ -34,7 +43,7 @@ public sealed class SettingsService
 
     public SettingsService()
     {
-        Settings = _settingsStore.Load() ?? new AppSettings();
+        Settings = Migrate(_settingsStore.Load() ?? new AppSettings());
         Profile = _profileStore.Load()?.Sanitized();
         LastReport = _reportStore.Load();
     }
@@ -46,6 +55,12 @@ public sealed class SettingsService
     public FilterProfile? Profile { get; private set; }
 
     public DriftReport? LastReport { get; private set; }
+
+    /// <summary>Carries a pre-1.4 settings file over to the current names.</summary>
+    private static AppSettings Migrate(AppSettings settings) =>
+        settings.StartFilterOnLaunch is { } legacy
+            ? settings with { AutoFilterWhenConnected = legacy, StartFilterOnLaunch = null }
+            : settings;
 
     public void Update(Func<AppSettings, AppSettings> change)
     {

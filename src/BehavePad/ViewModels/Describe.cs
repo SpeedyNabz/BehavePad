@@ -152,9 +152,6 @@ internal static class Describe
         shape == ZoneShape.Fitted ? FittedZone(settings).AreaShare : Math.Min(settings.Deadzone * settings.Deadzone, 1);
 
     /// <summary>A shape choice with the area it would ignore, such as "Shaped · 2.3%".</summary>
-    public static string ShapeLabel(StickFilterSettings settings, ZoneShape shape) =>
-        $"{(shape == ZoneShape.Fitted ? "Shaped" : "Round")} · {Percent(IgnoredShare(settings, shape))}";
-
     /// <summary>Points out a stick that still uses a circle when a safe circle can't cover its drift but a shaped zone can.</summary>
     public static string? ShapeHint(DriftReport report, FilterProfile profile)
     {

@@ -193,10 +193,15 @@ public sealed partial class UpdateService : ObservableObject
     public bool CanApplyNow() => IsReady && StagedPath is not null && _isSafeToApply();
 
     /// <summary>
-    /// Tidies up at startup: removes the previous build kept as a fallback, picks up a build staged by an earlier
-    /// session, and returns the version BehavePad just updated from when this start followed an update.
+    /// Tidies up at startup: removes the previous build kept as a fallback, and picks up a build staged by an
+    /// earlier session that has not been installed yet. Returns true when this start is the first run of a build
+    /// BehavePad installed itself.
     /// </summary>
-    public string? TakeAppliedUpdate()
+    /// <remarks>
+    /// There is no version to report updating from: nothing records what was running before, and the staged version
+    /// is the one now running, so it only ever says what it already is.
+    /// </remarks>
+    public bool TakeAppliedUpdate()
     {
         if (Environment.ProcessPath is { } path)
         {
@@ -205,7 +210,7 @@ public sealed partial class UpdateService : ObservableObject
 
         if (_record.StagedVersion is not { } staged)
         {
-            return null;
+            return false;
         }
 
         // The staged build is the one now running, so the replacement landed.
@@ -213,7 +218,7 @@ public sealed partial class UpdateService : ObservableObject
         {
             TryDelete(_record.StagedPath);
             Save(new UpdateRecord { LastCheck = _record.LastCheck });
-            return staged;
+            return true;
         }
 
         if (_record.StagedPath is { } stagedPath && File.Exists(stagedPath))
@@ -229,7 +234,7 @@ public sealed partial class UpdateService : ObservableObject
             Save(new UpdateRecord { LastCheck = _record.LastCheck });
         }
 
-        return null;
+        return false;
     }
 
     /// <summary>

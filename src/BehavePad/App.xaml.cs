@@ -152,24 +152,19 @@ public partial class App : Application
 
     private async Task RunStartupTasksAsync()
     {
-        if (_update!.TakeAppliedUpdate() is { } previous)
+        if (_update!.TakeAppliedUpdate())
         {
-            _tray?.ShowNotice("BehavePad updated", $"Updated from {previous} to {UpdateService.CurrentVersionText}.");
+            _tray?.ShowNotice("BehavePad updated", $"BehavePad is now version {UpdateService.CurrentVersionText}.");
         }
 
         await _filter!.RefreshDriversAsync();
 
-        // A controller that has already been tested gets its filter straight away.
-        var autoStart = _settings!.Settings.StartFilterOnLaunch && _settings.Profile is not null;
-        if (_filter.HidHide.HasPendingRestore && !autoStart)
+        // Nothing starts the filter here. FilterService watches for the controller and turns it on once
+        // it is actually there, which also covers a controller plugged in minutes after BehavePad opened.
+        if (_filter.HidHide.HasPendingRestore && !_filter.IsArmed)
         {
-            // The last session ended while a controller was hidden. Put it back.
+            // The last session ended while a controller was hidden, and nothing is going to hide it again. Put it back.
             await _filter.RestoreVisibilityAsync();
-        }
-
-        if (autoStart)
-        {
-            await _filter.StartAsync(installDrivers: false);
         }
 
         await _update.CheckAsync(automatic: true);
