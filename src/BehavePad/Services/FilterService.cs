@@ -333,13 +333,13 @@ public sealed partial class FilterService : ObservableObject
         }
         else if (!outcome.FilterActive)
         {
-            SetMessage("Filter is on, but HidHide isn't active on your controller yet, so games can still see it. Unplug the controller, plug it back in, then turn the filter off and on again.");
+            SetMessage("Filter is on, but HidHide isn't active on your controller yet, so games can still see it. Reconnect the controller, then turn the filter off and on again. A wireless controller reconnects by turning it off and on.");
         }
         else if (outcome.ReplugRecommended)
         {
             // Hiding only takes effect the next time something opens the controller, and BehavePad never forces
             // that, so say what the user can do instead of quietly leaving a game reading the drift.
-            SetMessage("Filter is on. If a game was already open, unplug your controller and plug it back in so it stops reading the original, then restart the game.");
+            SetMessage("Filter is on. If a game was already open, reconnect your controller so the game stops reading the original, then restart the game. A wireless controller reconnects by turning it off and on.");
         }
         else
         {
@@ -437,7 +437,7 @@ public sealed partial class FilterService : ObservableObject
                 _absentSinceMs = now;
                 _newArrival = false;
 
-                // Unplugging and plugging back in is the natural way to retry, so let it.
+                // Disconnecting and reconnecting is the natural way to retry, so let it.
                 _autoStartFailed = false;
             }
         }

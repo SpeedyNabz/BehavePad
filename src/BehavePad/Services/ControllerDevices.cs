@@ -1,3 +1,4 @@
+using BehavePad.Core.Devices;
 using Nefarius.Utilities.DeviceManagement.PnP;
 
 namespace BehavePad.Services;
@@ -11,8 +12,10 @@ public static class ControllerDevices
 
     /// <summary>
     /// Returns every device node HidHide must block so games stop seeing physical controllers.
-    /// That is the XInput device itself plus its USB parents, such as the "Xbox Controller"
-    /// composite device. Virtual controllers created by ViGEmBus are skipped.
+    /// That is the XInput device itself plus the parents that belong to the same controller: the USB
+    /// composite device for a cabled pad, or the Bluetooth nodes carrying its address for a wireless one.
+    /// HidHide loads on those parents rather than on the input node, so blocking them is what hides the pad.
+    /// Virtual controllers created by ViGEmBus are skipped.
     /// </summary>
     public static IReadOnlyList<ControllerDevice> FindPhysicalControllerNodes()
     {
@@ -41,10 +44,11 @@ public static class ControllerDevices
                 }
 
                 Add(nodes, device);
+                var ancestors = new ControllerAncestors();
                 IPnPDevice? ancestor = device.Parent;
                 for (var depth = 0; ancestor is not null && depth < MaxAncestorDepth; depth++)
                 {
-                    if (!IsControllerAncestor(ancestor.InstanceId))
+                    if (!ancestors.Accept(ancestor.InstanceId))
                     {
                         break;
                     }
@@ -61,11 +65,6 @@ public static class ControllerDevices
 
         return nodes.Values.ToList();
     }
-
-    private static bool IsControllerAncestor(string instanceId) =>
-        (instanceId.StartsWith(@"USB\VID_", StringComparison.OrdinalIgnoreCase) ||
-         instanceId.StartsWith(@"HID\", StringComparison.OrdinalIgnoreCase)) &&
-        !instanceId.Contains("ROOT_HUB", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsVirtual(IPnPDevice device)
     {

@@ -15,7 +15,7 @@ public sealed record HideState(IReadOnlyList<string> AddedInstanceIds, bool Acti
     /// <summary>True when HidHide is loaded on the controller, so blocking it has an effect.</summary>
     public bool FilterActive { get; init; } = true;
 
-    /// <summary>True when the user should unplug the controller and plug it back in, so anything holding it lets go.</summary>
+    /// <summary>True when the user should reconnect the controller, so anything holding it lets go.</summary>
     public bool ReplugRecommended { get; init; }
 }
 
@@ -215,7 +215,7 @@ public sealed class HidHideManager
         var filterActive = IsFilterLoaded(instanceIds);
 
         // HidHide only turns away new opens, so whatever already holds the controller keeps reading it: a game that
-        // started first, or GameInputSvc, which runs from boot. Only unplugging the controller makes them let go and
+        // started first, or GameInputSvc, which runs from boot. Only reconnecting the controller makes them let go and
         // ask again under the cloak. BehavePad used to restart the device itself, which on an Xbox Series pad brings
         // it back without the half anything can read, so it asks the user instead.
         var replugRecommended = !filterActive || activated || added.Count > 0;
