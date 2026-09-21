@@ -336,8 +336,9 @@
                     <TextBlock MaxWidth="720"
                                Margin="0,6,0,0"
                                HorizontalAlignment="Left"
-                               Style="{StaticResource BodyText}"
-                               Text="Let the stick spring back on its own. Do it six times per stick, in different directions. Worn springs land in a slightly different spot each time, and BehavePad measures that. Both sticks can go at once." />
+                               Style="{StaticResource BodyText}">
+                        <Run Text="Let the stick spring back on its own. Do it" /><Run Text=" " /><Run Text="{Binding ReleaseTarget, Mode=OneWay}" /><Run Text=" times per stick, in different directions. Worn springs land in a slightly different spot each time, and BehavePad measures that. Both sticks can go at once." />
+                    </TextBlock>
 
                     <Grid Margin="0,22,0,0">
                         <Grid.ColumnDefinitions>
@@ -510,7 +511,7 @@
                     </Border>
                 </Grid>
 
-                <WrapPanel Margin="6,12,0,0">
+                <WrapPanel Margin="6,10,0,0">
                     <Ellipse Width="8" Height="8" Margin="0,0,6,0" VerticalAlignment="Center" Fill="{StaticResource DriftBrush}" />
                     <TextBlock Margin="0,0,18,0" Style="{StaticResource CaptionText}" Text="Where the stick sat untouched" />
                     <Ellipse Width="9" Height="9" Margin="0,0,6,0" VerticalAlignment="Center" Fill="{StaticResource HaloBrush}" />
@@ -524,7 +525,7 @@
                            Text="{Binding ShapeHint}"
                            Visibility="{Binding ShapeHint, Converter={StaticResource NullToVisibility}}" />
 
-                <Grid Margin="0,14,0,0">
+                <Grid Margin="0,26,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition />
                         <ColumnDefinition Width="16" />

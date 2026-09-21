@@ -45,7 +45,7 @@ public sealed class StickPlot : FrameworkElement
     private static readonly Brush OutputBrush = Frozen(new SolidColorBrush(Mint));
     private static readonly Brush OutputGlow = Frozen(new RadialGradientBrush(Color.FromArgb(0x88, 0x3E, 0xE6, 0xA8), Color.FromArgb(0, 0x3E, 0xE6, 0xA8)));
     private static readonly Pen CenterPen = Frozen(new Pen(Frozen(new SolidColorBrush(Mint)), 1.5));
-    private static readonly Brush ZoomTextBrush = Frozen(new SolidColorBrush(Color.FromRgb(0x6A, 0x7C, 0x90)));
+    private static readonly Brush ZoomTextBrush = Frozen(new SolidColorBrush(Color.FromRgb(0x7C, 0x8F, 0xA5)));
 
     private readonly Queue<StickPoint> _trail = new();
 

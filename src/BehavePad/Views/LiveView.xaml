@@ -20,19 +20,10 @@
         <StackPanel MaxWidth="1040" Margin="36,28,36,36">
 
             <!-- Header -->
-            <DockPanel>
-                <CheckBox VerticalAlignment="Center"
-                          Command="{Binding ToggleFilterCommand}"
-                          DockPanel.Dock="Right"
-                          IsChecked="{Binding IsFilterOn, Mode=OneWay}"
-                          Style="{StaticResource LargeSwitchStyle}">
-                    <TextBlock FontSize="15" FontWeight="SemiBold" Text="Filter for games" />
-                </CheckBox>
-                <StackPanel>
-                    <TextBlock Style="{StaticResource H1Text}" Text="Live filter" />
-                    <TextBlock Margin="0,6,0,0" Style="{StaticResource BodyText}" Text="Move the sticks and press buttons to see exactly what your games receive." />
-                </StackPanel>
-            </DockPanel>
+            <StackPanel>
+                <TextBlock Style="{StaticResource H1Text}" Text="Live filter" />
+                <TextBlock Margin="0,6,0,0" Style="{StaticResource BodyText}" Text="Move the sticks and press buttons to see exactly what your games receive." />
+            </StackPanel>
 
             <!-- Status and pipeline -->
             <Border Margin="0,20,0,0" Style="{StaticResource Card}">
@@ -62,6 +53,14 @@
                                 </TextBlock.Style>
                             </TextBlock>
                         </Border>
+                        <CheckBox Margin="16,0,0,0"
+                                  VerticalAlignment="Center"
+                                  Command="{Binding ToggleFilterCommand}"
+                                  DockPanel.Dock="Right"
+                                  IsChecked="{Binding IsFilterOn, Mode=OneWay}"
+                                  Style="{StaticResource LargeSwitchStyle}">
+                            <TextBlock FontSize="15" FontWeight="SemiBold" Text="Filter for games" />
+                        </CheckBox>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Style="{StaticResource H2Text}" Text="{Binding StatusTitle}" />
                             <TextBlock Margin="0,3,0,0" Style="{StaticResource BodyText}" Text="{Binding StatusDetail}" />
@@ -80,14 +79,41 @@
                         <Border Style="{StaticResource PipelineChip}">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource OverlineText}" Text="YOUR CONTROLLER" />
-                                <TextBlock Margin="0,4,0,0" FontWeight="SemiBold" Text="{Binding PhysicalStatusText}" />
+                                <TextBlock Margin="0,4,0,0" FontWeight="SemiBold" Text="{Binding PhysicalStatusText}">
+                                    <TextBlock.Style>
+                                        <!-- Still visible while filtering means drift can reach games, so it reads as a warning. -->
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding PhysicalHidden}" Value="True">
+                                                    <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding PhysicalNeedsAttention}" Value="True">
+                                                    <Setter Property="Foreground" Value="{StaticResource WarningBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
                             </StackPanel>
                         </Border>
                         <TextBlock Grid.Column="1" HorizontalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" Style="{StaticResource GlyphText}" Text="&#xE76C;" />
                         <Border Grid.Column="2" Style="{StaticResource PipelineChip}">
                             <StackPanel>
                                 <TextBlock Style="{StaticResource OverlineText}" Text="BEHAVEPAD FILTER" />
-                                <TextBlock Margin="0,4,0,0" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" Text="{Binding ProfileStatusText}" />
+                                <TextBlock Margin="0,4,0,0" FontWeight="SemiBold" Text="{Binding ProfileStatusText}">
+                                    <TextBlock.Style>
+                                        <!-- Mint only once there is a filter to describe. "Not built" is not good news. -->
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasProfile}" Value="True">
+                                                    <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
                             </StackPanel>
                         </Border>
                         <TextBlock Grid.Column="3" HorizontalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" Style="{StaticResource GlyphText}" Text="&#xE76C;" />
@@ -241,7 +267,17 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                        <TextBlock Margin="0,6,0,0" Style="{StaticResource CaptionText}" Text="Mint means games see the press. Red means BehavePad held back a press it treats as unintended." />
+                        <!-- Swatches rather than colour names, so the key works without knowing what "mint" is. -->
+                        <WrapPanel Margin="0,8,0,0">
+                            <Border Margin="0,0,7,4" Padding="8,3" Background="{StaticResource AccentBrush}" CornerRadius="6">
+                                <TextBlock FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource OnAccentBrush}" Text="A" />
+                            </Border>
+                            <TextBlock Margin="0,0,18,4" VerticalAlignment="Center" Style="{StaticResource CaptionText}" Text="Games see the press" />
+                            <Border Margin="0,0,7,4" Padding="8,3" Background="{StaticResource DriftSoftBrush}" CornerRadius="6">
+                                <TextBlock FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource DriftBrush}" Text="A" />
+                            </Border>
+                            <TextBlock Margin="0,0,0,4" VerticalAlignment="Center" Style="{StaticResource CaptionText}" Text="BehavePad held it back as unintended" />
+                        </WrapPanel>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -363,6 +399,8 @@
                     <Border Height="1" Margin="0,16" Background="{StaticResource StrokeSubtleBrush}" />
 
                     <!-- Triggers -->
+                    <TextBlock Style="{StaticResource OverlineText}" Text="TRIGGERS" />
+                    <TextBlock Margin="0,4,0,6" Style="{StaticResource CaptionText}" Text="How far each trigger has to be pulled before games feel it." />
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="190" />
@@ -374,11 +412,11 @@
                             <RowDefinition Height="40" />
                         </Grid.RowDefinitions>
 
-                        <TextBlock VerticalAlignment="Center" Text="Left trigger ignored pull" />
+                        <TextBlock VerticalAlignment="Center" Text="Left trigger" />
                         <Slider Grid.Column="1" VerticalAlignment="Center" LargeChange="0.02" Maximum="0.35" Minimum="0" SmallChange="0.005" Value="{Binding LeftTriggerDeadzone}" />
                         <TextBlock Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding LeftTriggerDeadzone, Converter={StaticResource Percent}}" />
 
-                        <TextBlock Grid.Row="1" VerticalAlignment="Center" Text="Right trigger ignored pull" />
+                        <TextBlock Grid.Row="1" VerticalAlignment="Center" Text="Right trigger" />
                         <Slider Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" LargeChange="0.02" Maximum="0.35" Minimum="0" SmallChange="0.005" Value="{Binding RightTriggerDeadzone}" />
                         <TextBlock Grid.Row="1" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding RightTriggerDeadzone, Converter={StaticResource Percent}}" />
                     </Grid>

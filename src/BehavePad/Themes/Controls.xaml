@@ -131,11 +131,38 @@
             <Trigger Property="Content" Value="{x:Null}">
                 <Setter TargetName="Glyph" Property="Margin" Value="0" />
             </Trigger>
+            <!-- Hover fades in; the press reads as instant so a click never feels laggy. -->
             <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="HoverLayer" Property="Opacity" Value="1" />
+                <Trigger.EnterActions>
+                    <BeginStoryboard>
+                        <Storyboard>
+                            <DoubleAnimation Storyboard.TargetName="HoverLayer" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.11" />
+                        </Storyboard>
+                    </BeginStoryboard>
+                </Trigger.EnterActions>
+                <Trigger.ExitActions>
+                    <BeginStoryboard>
+                        <Storyboard>
+                            <DoubleAnimation Storyboard.TargetName="HoverLayer" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.16" />
+                        </Storyboard>
+                    </BeginStoryboard>
+                </Trigger.ExitActions>
             </Trigger>
             <Trigger Property="IsPressed" Value="True">
-                <Setter TargetName="PressedLayer" Property="Opacity" Value="1" />
+                <Trigger.EnterActions>
+                    <BeginStoryboard>
+                        <Storyboard>
+                            <DoubleAnimation Storyboard.TargetName="PressedLayer" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.02" />
+                        </Storyboard>
+                    </BeginStoryboard>
+                </Trigger.EnterActions>
+                <Trigger.ExitActions>
+                    <BeginStoryboard>
+                        <Storyboard>
+                            <DoubleAnimation Storyboard.TargetName="PressedLayer" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.18" />
+                        </Storyboard>
+                    </BeginStoryboard>
+                </Trigger.ExitActions>
             </Trigger>
             <Trigger Property="IsEnabled" Value="False">
                 <Setter TargetName="Root" Property="Opacity" Value="0.4" />
@@ -242,7 +269,12 @@
                                     HorizontalAlignment="Left"
                                     Background="{StaticResource AccentBrush}"
                                     CornerRadius="2"
-                                    Opacity="0" />
+                                    Opacity="0"
+                                    RenderTransformOrigin="0.5,0.5">
+                                <Border.RenderTransform>
+                                    <ScaleTransform ScaleY="0.3" />
+                                </Border.RenderTransform>
+                            </Border>
                             <StackPanel Margin="16,0,12,0" VerticalAlignment="Center" Orientation="Horizontal">
                                 <TextBlock x:Name="Glyph"
                                            Width="22"
@@ -261,9 +293,29 @@
                         </Trigger>
                         <Trigger Property="IsChecked" Value="True">
                             <Setter TargetName="Chrome" Property="Background" Value="{StaticResource SurfaceRaisedBrush}" />
-                            <Setter TargetName="Indicator" Property="Opacity" Value="1" />
                             <Setter TargetName="Glyph" Property="Foreground" Value="{StaticResource AccentBrush}" />
                             <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+                            <!-- The marker grows into place so the eye can follow the move between pages. -->
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Indicator" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.13" />
+                                        <DoubleAnimation Storyboard.TargetName="Indicator" Storyboard.TargetProperty="RenderTransform.ScaleY" To="1" Duration="0:0:0.22">
+                                            <DoubleAnimation.EasingFunction>
+                                                <CubicEase EasingMode="EaseOut" />
+                                            </DoubleAnimation.EasingFunction>
+                                        </DoubleAnimation>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Indicator" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.1" />
+                                        <DoubleAnimation Storyboard.TargetName="Indicator" Storyboard.TargetProperty="RenderTransform.ScaleY" To="0.3" Duration="0:0:0.1" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Chrome" Property="Background" Value="Transparent" />
@@ -539,13 +591,28 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Thumb">
-                    <Grid Width="18" Height="18" Background="Transparent">
-                        <Ellipse x:Name="Knob" Fill="{StaticResource AccentBrush}" Stroke="{StaticResource SurfaceBrush}" StrokeThickness="3" />
+                    <Grid Width="26" Height="26" Background="Transparent">
+                        <!-- Ring appears when the slider takes keyboard focus, which otherwise showed nothing. -->
+                        <Ellipse x:Name="FocusHalo"
+                                 Width="26"
+                                 Height="26"
+                                 Opacity="0"
+                                 Stroke="{StaticResource AccentBrush}"
+                                 StrokeThickness="2" />
+                        <Ellipse x:Name="Knob"
+                                 Width="18"
+                                 Height="18"
+                                 Fill="{StaticResource AccentBrush}"
+                                 Stroke="{StaticResource SurfaceBrush}"
+                                 StrokeThickness="3" />
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Knob" Property="Fill" Value="{StaticResource AccentHoverBrush}" />
                         </Trigger>
+                        <DataTrigger Binding="{Binding IsKeyboardFocusWithin, RelativeSource={RelativeSource AncestorType=Slider}}" Value="True">
+                            <Setter TargetName="FocusHalo" Property="Opacity" Value="1" />
+                        </DataTrigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
@@ -555,11 +622,12 @@
     <Style TargetType="Slider">
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="IsMoveToPointEnabled" Value="True" />
+        <!-- No rectangle around the whole track: the thumb draws its own focus ring instead. -->
         <Setter Property="FocusVisualStyle" Value="{x:Null}" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Slider">
-                    <Grid Height="24" Background="Transparent">
+                    <Grid Height="28" Background="Transparent">
                         <Border Height="4" VerticalAlignment="Center" Background="{StaticResource TrackBrush}" CornerRadius="2" />
                         <Track x:Name="PART_Track">
                             <Track.DecreaseRepeatButton>

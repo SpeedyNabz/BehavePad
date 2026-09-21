@@ -1,6 +1,9 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Automation;
+using System.Windows.Data;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using BehavePad.ViewModels;
 
@@ -46,6 +49,21 @@ public partial class MainWindow : Window
         // A borderless maximized window extends past the screen edge by the resize border.
         Root.Margin = maximized ? new Thickness(7) : new Thickness(0);
         MaximizeButton.Content = maximized ? "" : "";
+        MaximizeButton.ToolTip = maximized ? "Restore down" : "Maximize";
+        AutomationProperties.SetName(MaximizeButton, maximized ? "Restore down" : "Maximize");
+    }
+
+    /// <summary>A short rise and fade on each page, so switching pages reads as a move rather than a blink.</summary>
+    private void OnPageChanged(object sender, DataTransferEventArgs e)
+    {
+        var slide = new DoubleAnimation(10, 0, TimeSpan.FromMilliseconds(220))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+        };
+        var fade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180));
+
+        PageHost.RenderTransform.BeginAnimation(TranslateTransform.YProperty, slide);
+        PageHost.BeginAnimation(OpacityProperty, fade);
     }
 
     private void OnMinimizeClick(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;

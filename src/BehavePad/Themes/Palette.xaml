@@ -14,7 +14,7 @@
     <!-- Text -->
     <Color x:Key="TextPrimaryColor">#EAF1F7</Color>
     <Color x:Key="TextSecondaryColor">#9AAABB</Color>
-    <Color x:Key="TextMutedColor">#6A7C90</Color>
+    <Color x:Key="TextMutedColor">#7C8FA5</Color>
 
     <!-- Brand and status -->
     <Color x:Key="AccentColor">#3EE6A8</Color>

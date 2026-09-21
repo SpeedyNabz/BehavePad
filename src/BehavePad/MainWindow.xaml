@@ -110,9 +110,14 @@
             </Grid.RowDefinitions>
 
             <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
-                <Button Click="OnMinimizeClick" Content="&#xE921;" Style="{StaticResource TitleBarButton}" />
-                <Button x:Name="MaximizeButton" Click="OnMaximizeClick" Content="&#xE922;" Style="{StaticResource TitleBarButton}" />
-                <Button Click="OnCloseClick" Content="&#xE8BB;" Style="{StaticResource TitleBarCloseButton}" />
+                <Button AutomationProperties.Name="Minimize" Click="OnMinimizeClick" Content="&#xE921;" Style="{StaticResource TitleBarButton}" ToolTip="Minimize" />
+                <Button x:Name="MaximizeButton"
+                        AutomationProperties.Name="Maximize"
+                        Click="OnMaximizeClick"
+                        Content="&#xE922;"
+                        Style="{StaticResource TitleBarButton}"
+                        ToolTip="Maximize" />
+                <Button AutomationProperties.Name="Close" Click="OnCloseClick" Content="&#xE8BB;" Style="{StaticResource TitleBarCloseButton}" ToolTip="Close" />
             </StackPanel>
 
             <Border Grid.Row="1"
@@ -132,12 +137,21 @@
                     </Style>
                 </Border.Style>
                 <DockPanel>
-                    <Button Padding="8,4" controls:Ui.Glyph="&#xE711;" Command="{Binding DismissMessageCommand}" DockPanel.Dock="Right" Style="{StaticResource GhostButton}" ToolTip="Dismiss" />
+                    <Button Padding="8,4" AutomationProperties.Name="Dismiss message" controls:Ui.Glyph="&#xE711;" Command="{Binding DismissMessageCommand}" DockPanel.Dock="Right" Style="{StaticResource GhostButton}" ToolTip="Dismiss" />
                     <TextBlock VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}" Text="{Binding Filter.Message}" TextWrapping="Wrap" />
                 </DockPanel>
             </Border>
 
-            <ContentControl Grid.Row="2" Content="{Binding CurrentViewModel}" Focusable="False" />
+            <ContentControl x:Name="PageHost"
+                            Grid.Row="2"
+                            Binding.TargetUpdated="OnPageChanged"
+                            Content="{Binding CurrentViewModel, NotifyOnTargetUpdated=True}"
+                            Focusable="False">
+                <ContentControl.RenderTransform>
+                    <TranslateTransform />
+                </ContentControl.RenderTransform>
+            </ContentControl>
+
         </Grid>
     </Grid>
 </Window>
