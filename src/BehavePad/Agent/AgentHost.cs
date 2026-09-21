@@ -66,6 +66,13 @@ public sealed class AgentHost : IDisposable
         _server.Start();
         _frameTimer.Start();
         _tray.Update(_filter.IsOn);
+
+        // A sign-in entry written before 1.5 starts the whole app. Point it at the agent instead.
+        if (_settings.Settings.LaunchAtSignIn && !StartupRegistration.IsRegistered())
+        {
+            StartupRegistration.Apply(true);
+        }
+
         _ = RunStartupTasksAsync();
     }
 

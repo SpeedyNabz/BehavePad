@@ -81,7 +81,9 @@ public partial class App : Application
         }
 
         // The background agent: no window, just the controller, the filter and the tray icon.
-        if (args.Contains(AgentContract.AgentArgument))
+        // --minimized is what a sign-in entry written before 1.5 says, and it meant the same thing:
+        // start without showing a window. The agent rewrites that entry once it is up.
+        if (args.Contains(AgentContract.AgentArgument) || args.Contains(StartupRegistration.MinimizedArgument))
         {
             StartAgent(args.Contains(DemoArgument));
             return;
