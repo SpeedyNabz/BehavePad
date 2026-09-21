@@ -52,20 +52,22 @@ public sealed partial class DriverSetupService : ObservableObject
     [ObservableProperty]
     private double _progress;
 
+    /// <summary>Copies the agent's install progress into the window, which only reports it.</summary>
+    public void ApplyRemoteState(Ipc.AgentState state)
+    {
+        IsBusy = state.DriverBusy;
+        Status = state.DriverStatus;
+        StatusIsError = state.DriverStatusIsError;
+        Progress = state.DriverProgress;
+    }
+
     private static string DownloadFolder => Path.Combine(Path.GetTempPath(), "BehavePad", "drivers");
 
     private static string HelperFolder => Path.Combine(Path.GetTempPath(), "BehavePad");
 
     private static string CurrentExecutable => Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule!.FileName;
 
-    private static bool IsElevated
-    {
-        get
-        {
-            using var identity = WindowsIdentity.GetCurrent();
-            return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
-        }
-    }
+    private static bool IsElevated => Elevation.IsElevated;
 
     public async Task<DriverSetupOutcome> InstallAsync(IReadOnlyList<DriverPackage> packages)
     {

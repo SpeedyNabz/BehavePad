@@ -1,4 +1,6 @@
 using System.ComponentModel;
+using BehavePad.Core.Engine;
+using BehavePad.Ipc;
 using BehavePad.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -26,12 +28,18 @@ public sealed partial class ShellViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CurrentViewModel))]
     private AppPage _currentPage;
 
-    public ShellViewModel(ControllerService controller, FilterService filter, SettingsService settings, UpdateService update)
+    public ShellViewModel(ControllerService controller, FilterService filter, SettingsService settings, UpdateService update, AgentLink? link = null)
     {
         Controller = controller;
         Filter = filter;
         Settings = settings;
         Update = update;
+        Link = link;
+        if (link is not null)
+        {
+            link.EventReceived += OnAgentEvent;
+            link.ConnectedChanged += (_, connected) => AgentConnected = connected;
+        }
 
         Overview = new OverviewViewModel(this);
         Test = new TestViewModel(this);
@@ -51,6 +59,18 @@ public sealed partial class ShellViewModel : ObservableObject
     public SettingsService Settings { get; }
 
     public UpdateService Update { get; }
+
+    /// <summary>The pipe to the background agent, or null in the agent's own in-process window.</summary>
+    public AgentLink? Link { get; }
+
+    /// <summary>Raised when the agent asks the window to come to the front.</summary>
+    public event EventHandler? ActivateRequested;
+
+    [ObservableProperty]
+    private bool _agentConnected = true;
+
+    /// <summary>Whether the agent runs with the rights to hide a controller without Windows asking.</summary>
+    public bool IsAgentElevated { get; private set; } = Elevation.IsElevated;
 
     public OverviewViewModel Overview { get; }
 
@@ -142,6 +162,31 @@ public sealed partial class ShellViewModel : ObservableObject
         if (e.PropertyName == nameof(ControllerService.IsConnected))
         {
             RaiseFilterStatus();
+        }
+    }
+
+    /// <summary>Everything the agent sends lands here, on the UI thread.</summary>
+    private void OnAgentEvent(object? sender, IpcEnvelope envelope)
+    {
+        switch (envelope.Kind)
+        {
+            case nameof(AgentEvent.State) when envelope.Read<AgentState>() is { } state:
+                IsAgentElevated = state.IsElevated;
+                Controller.ApplyRemoteStatus(state.Connected, state.Slot, state.IsDemo, state.ControllerStatusText, state.BatteryText, state.HasXInput);
+                Filter.ApplyRemoteState(state);
+                Update.ApplyRemoteState(state);
+                Settings.ApplyRemoteState(state);
+                RaiseFilterStatus();
+                break;
+            case nameof(AgentEvent.Frame) when envelope.Read<PumpFrame>() is { } frame:
+                Controller.ApplyRemoteFrame(frame);
+                break;
+            case nameof(AgentEvent.Test) when envelope.Read<TestSnapshot>() is { } snapshot:
+                Test.ApplySnapshot(snapshot);
+                break;
+            case nameof(AgentEvent.Activate):
+                ActivateRequested?.Invoke(this, EventArgs.Empty);
+                break;
         }
     }
 

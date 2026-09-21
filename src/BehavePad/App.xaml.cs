@@ -3,9 +3,12 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Threading;
+using BehavePad.Agent;
 using BehavePad.Controls;
 using BehavePad.Core.Storage;
+using BehavePad.Ipc;
 using BehavePad.Services;
+using BehavePad.Setup;
 using BehavePad.ViewModels;
 
 namespace BehavePad;
@@ -20,12 +23,14 @@ public partial class App : Application
     private const string TourArgument = "--capture-tour";
 
     private Mutex? _mutex;
+    private Mutex? _agentMutex;
     private EventWaitHandle? _activateEvent;
     private SettingsService? _settings;
     private ControllerService? _controller;
     private FilterService? _filter;
     private UpdateService? _update;
-    private TrayIcon? _tray;
+    private AgentLink? _link;
+    private AgentHost? _agent;
     private MainWindow? _window;
     private bool _exiting;
 
@@ -59,6 +64,29 @@ public partial class App : Application
         RuntimeHelpers.RunClassConstructor(typeof(Ui).TypeHandle);
         EnableBindingTrace();
 
+        DispatcherUnhandledException += OnDispatcherUnhandledException;
+
+        // Setup and removal. BehavePad is one self-contained file, so it installs itself rather than
+        // shipping a second program that would only duplicate its look.
+        if (args.Contains(AppInstaller.UninstallArgument))
+        {
+            ShowInstaller(uninstalling: true);
+            return;
+        }
+
+        if (AppInstaller.ShouldRunInstaller(args))
+        {
+            ShowInstaller(uninstalling: false);
+            return;
+        }
+
+        // The background agent: no window, just the controller, the filter and the tray icon.
+        if (args.Contains(AgentContract.AgentArgument))
+        {
+            StartAgent(args.Contains(DemoArgument));
+            return;
+        }
+
         var screenshotPath = ArgumentValue(args, ScreenshotArgument);
         var tourDirectory = ArgumentValue(args, TourArgument);
         var capturing = screenshotPath is not null || tourDirectory is not null;
@@ -68,15 +96,85 @@ public partial class App : Application
             return;
         }
 
-        DispatcherUnhandledException += OnDispatcherUnhandledException;
-        AppDomain.CurrentDomain.UnhandledException += (_, _) => _filter?.ShutdownBlocking();
+        _ = StartWindowAsync(args, capturing, screenshotPath, tourDirectory);
+    }
 
-        _settings = new SettingsService();
-        var demo = _settings.Settings.UseDemoController || args.Contains(DemoArgument);
-        _controller = new ControllerService(demo, _settings.Settings.PreferredSlot);
-        _filter = new FilterService(_controller, _settings);
-        _update = new UpdateService(_settings, () => _filter is { IsOn: false, IsBusy: false });
-        var shell = new ShellViewModel(_controller, _filter, _settings, _update);
+    /// <summary>Shows the setup window, which shares BehavePad's own theme so it cannot drift from it.</summary>
+    private void ShowInstaller(bool uninstalling)
+    {
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
+        var window = new InstallerWindow(new InstallerViewModel(uninstalling));
+        window.Closed += (_, _) => Shutdown();
+        window.Show();
+    }
+
+    /// <summary>Runs the background half. Nothing here needs a window, so none is created.</summary>
+    private void StartAgent(bool demo)
+    {
+        _agentMutex = new Mutex(true, AgentContract.AgentMutexName, out var owned);
+        if (!owned)
+        {
+            // An agent is already looking after this session.
+            _agentMutex.Dispose();
+            _agentMutex = null;
+            Shutdown();
+            return;
+        }
+
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
+        AppDomain.CurrentDomain.UnhandledException += (_, _) => _agent?.ShutdownBlocking();
+
+        _agent = new AgentHost(demo);
+        _agent.Exiting += (_, _) =>
+        {
+            _agent?.Dispose();
+            _agent = null;
+            Shutdown();
+        };
+        _agent.Start();
+    }
+
+    /// <summary>Runs the window, starting the agent first if nothing is looking after this session yet.</summary>
+    private async Task StartWindowAsync(string[] args, bool capturing, string? screenshotPath, string? tourDirectory)
+    {
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
+
+        // A capture run hosts its own agent, so the screenshots never depend on what is already running.
+        if (capturing)
+        {
+            _agent = new AgentHost(args.Contains(DemoArgument));
+            _agent.Start();
+        }
+        else if (!await EnsureAgentAsync(args.Contains(DemoArgument)))
+        {
+            MessageBox.Show(
+                "BehavePad could not start its background service, so there is nothing to show.",
+                "BehavePad",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            Shutdown();
+            return;
+        }
+
+        _link = new AgentLink(Dispatcher);
+        if (!await _link.ConnectAsync(TimeSpan.FromSeconds(10)))
+        {
+            MessageBox.Show(
+                "BehavePad's background service is running but did not answer.",
+                "BehavePad",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            Shutdown();
+            return;
+        }
+
+        _settings = SettingsService.Remote(_link);
+        _controller = ControllerService.Remote();
+        _filter = FilterService.Remote(_link, _controller, _settings);
+        _update = UpdateService.Remote(_link, _settings);
+
+        var shell = new ShellViewModel(_controller, _filter, _settings, _update, _link);
+        shell.ActivateRequested += (_, _) => ShowMainWindow();
         if (Enum.TryParse<AppPage>(ArgumentValue(args, PageArgument), ignoreCase: true, out var page))
         {
             shell.CurrentPage = page;
@@ -84,36 +182,75 @@ public partial class App : Application
 
         _window = new MainWindow(shell);
         _window.Closing += OnWindowClosing;
-        _controller.Start();
+        _window.Show();
 
         if (capturing)
         {
-            _window.Show();
             _ = tourDirectory is not null ? CaptureTourAsync(shell, tourDirectory) : CaptureAndExitAsync(screenshotPath!);
-            return;
         }
+    }
 
-        _tray = new TrayIcon(ShowMainWindow, () => shell.ToggleFilterCommand.ExecuteAsync(null), ExitApplication);
-        _filter.PropertyChanged += OnFilterPropertyChanged;
-        _update.PropertyChanged += OnUpdatePropertyChanged;
-
-        if (!args.Contains(StartupRegistration.MinimizedArgument))
+    /// <summary>Connects to the agent, starting one and waiting for it when there is none.</summary>
+    private async Task<bool> EnsureAgentAsync(bool demo)
+    {
+        using var probe = new AgentLink(Dispatcher);
+        if (await probe.ConnectAsync(TimeSpan.FromMilliseconds(400)))
         {
-            _window.Show();
+            return true;
         }
 
-        _ = RunStartupTasksAsync();
+        if (Environment.ProcessPath is not { } path)
+        {
+            return false;
+        }
+
+        try
+        {
+            var arguments = AgentContract.AgentArgument + (demo ? $" {DemoArgument}" : "");
+            Process.Start(new ProcessStartInfo(path, arguments) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            Trace.TraceError($"BehavePad could not start its agent: {ex.Message}");
+            return false;
+        }
+
+        for (var attempt = 0; attempt < 20; attempt++)
+        {
+            using var retry = new AgentLink(Dispatcher);
+            if (await retry.ConnectAsync(TimeSpan.FromMilliseconds(500)))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     protected override void OnSessionEnding(SessionEndingCancelEventArgs e)
     {
-        _filter?.ShutdownBlocking();
+        _agent?.ShutdownBlocking();
         base.OnSessionEnding(e);
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
         _activateEvent?.Dispose();
+        _link?.Dispose();
+        _agent?.Dispose();
+        if (_agentMutex is not null)
+        {
+            try
+            {
+                _agentMutex.ReleaseMutex();
+            }
+            catch (ApplicationException)
+            {
+            }
+
+            _agentMutex.Dispose();
+        }
+
         if (_mutex is not null)
         {
             try
@@ -148,31 +285,6 @@ public partial class App : Application
         PresentationTraceSources.DataBindingSource.Listeners.Add(new TextWriterTraceListener(tracePath));
         PresentationTraceSources.DataBindingSource.Switch.Level = SourceLevels.Warning;
         Trace.AutoFlush = true;
-    }
-
-    private async Task RunStartupTasksAsync()
-    {
-        if (_update!.TakeAppliedUpdate())
-        {
-            _tray?.ShowNotice("BehavePad updated", $"BehavePad is now version {UpdateService.CurrentVersionText}.");
-        }
-
-        await _filter!.RefreshDriversAsync();
-
-        // Nothing starts the filter here. FilterService watches for the controller and turns it on once
-        // it is actually there, which also covers a controller plugged in minutes after BehavePad opened.
-        if (_filter.HidHide.HasPendingRestore && !_filter.IsArmed)
-        {
-            // The last session ended while a controller was hidden, and nothing is going to hide it again. Put it back.
-            await _filter.RestoreVisibilityAsync();
-        }
-
-        await _update.CheckAsync(automatic: true);
-
-        // The check refuses to run more than once a day on its own, so this only matters for a PC left on for days.
-        var updateTimer = new DispatcherTimer { Interval = TimeSpan.FromHours(6) };
-        updateTimer.Tick += async (_, _) => await _update.CheckAsync(automatic: true);
-        updateTimer.Start();
     }
 
     private async Task CaptureAndExitAsync(string path)
@@ -251,27 +363,10 @@ public partial class App : Application
         _window.Activate();
     }
 
-    private void OnFilterPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName == nameof(FilterService.State))
-        {
-            Dispatcher.BeginInvoke(() => _tray?.Update(_filter!.IsOn));
-        }
-    }
-
-    private void OnUpdatePropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName != nameof(UpdateService.State) || _update is not { IsReady: true, StagedVersion: { } version })
-        {
-            return;
-        }
-
-        // Installing now would interrupt whatever the controller is in the middle of, so it waits for the way out.
-        Dispatcher.BeginInvoke(() => _tray?.ShowNotice(
-            $"BehavePad {version} is ready",
-            "It installs when you exit BehavePad. To update now, choose Restart and install on the Setup page."));
-    }
-
+    /// <summary>
+    /// Closing the window never stops the filter. The agent keeps running with its tray icon, and
+    /// "Exit" on that icon is what actually stops BehavePad.
+    /// </summary>
     private void OnWindowClosing(object? sender, CancelEventArgs e)
     {
         if (_exiting)
@@ -280,14 +375,6 @@ public partial class App : Application
         }
 
         e.Cancel = true;
-        if (_settings!.Settings.MinimizeToTray && _filter!.IsOn && _tray is not null)
-        {
-            _window!.Hide();
-            _tray.ShowNotice("BehavePad is still filtering", "Your games keep getting clean input. Open BehavePad from the notification area.");
-            return;
-        }
-
-        // A window can't be closed again from inside its own Closing event, so exit right after it returns.
         Dispatcher.BeginInvoke(ExitApplication);
     }
 
@@ -299,12 +386,10 @@ public partial class App : Application
         }
 
         _exiting = true;
-        _filter?.ShutdownBlocking();
 
-        // The controller is visible to games again, so a verified build can safely replace this one on the way out.
-        _update?.TryApply(relaunch: false);
+        // A capture run owns its agent, so it has to take it down as well.
+        _agent?.ShutdownBlocking();
         _controller?.Dispose();
-        _tray?.Dispose();
         _window?.Close();
         Shutdown();
     }

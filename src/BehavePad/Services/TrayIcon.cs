@@ -22,7 +22,7 @@ public sealed class TrayIcon : IDisposable
         menu.Items.Add("Open BehavePad", null, (_, _) => open());
         _toggleItem = menu.Items.Add("Turn filter on", null, async (_, _) => await toggleFilter());
         menu.Items.Add(new Forms.ToolStripSeparator());
-        menu.Items.Add("Exit", null, (_, _) => exit());
+        menu.Items.Add("Exit BehavePad", null, (_, _) => exit());
         _icon.ContextMenuStrip = menu;
         _icon.MouseClick += (_, e) =>
         {

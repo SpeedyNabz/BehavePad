@@ -1,4 +1,5 @@
 using BehavePad.Core.Engine;
+using BehavePad.Ipc;
 using BehavePad.Core.Filtering;
 using BehavePad.Core.Input;
 using BehavePad.Core.Setup;
@@ -40,6 +41,10 @@ public sealed partial class FilterService : ObservableObject
 
     private readonly ControllerService _controller;
     private readonly SettingsService _settings;
+
+    /// <summary>Set in the window, null in the agent. Its presence is what makes this instance a client.</summary>
+    private readonly AgentLink? _link;
+    private bool _remoteHasPendingRestore;
     private VirtualXboxPad? _pad;
     private int _savedGrowths;
     private bool _wasConnected;
@@ -77,6 +82,7 @@ public sealed partial class FilterService : ObservableObject
     [NotifyPropertyChangedFor(nameof(DriversReady))]
     private DriverInfo _hidHideDriver = new(false, null, null);
 
+    /// <summary>The agent's constructor. This is the only instance that touches the pump, ViGEm or HidHide.</summary>
     public FilterService(ControllerService controller, SettingsService settings)
     {
         _controller = controller;
@@ -86,6 +92,33 @@ public sealed partial class FilterService : ObservableObject
         _settings.Changed += OnSettingsChanged;
         ApplyProfile(settings.Profile);
         RefreshArmed();
+    }
+
+    /// <summary>The window's constructor. Every command is forwarded to the agent, which does the work.</summary>
+    private FilterService(AgentLink link, ControllerService controller, SettingsService settings)
+    {
+        _link = link;
+        _controller = controller;
+        _settings = settings;
+    }
+
+    public static FilterService Remote(AgentLink link, ControllerService controller, SettingsService settings) =>
+        new(link, controller, settings);
+
+    /// <summary>Copies the agent's filter state into the window.</summary>
+    public void ApplyRemoteState(AgentState state)
+    {
+        State = state.FilterState;
+        PhysicalHidden = state.PhysicalHidden;
+        VirtualSlot = state.VirtualSlot;
+        Message = state.Message;
+        MessageIsError = state.MessageIsError;
+        IsArmed = state.IsArmed;
+        Vigem = state.Vigem;
+        HidHideDriver = state.HidHide;
+        _remoteHasPendingRestore = state.HasPendingRestore;
+        DriverSetup.ApplyRemoteState(state);
+        OnPropertyChanged(nameof(HasPendingRestore));
     }
 
     public HidHideManager HidHide { get; } = new();
@@ -98,8 +131,17 @@ public sealed partial class FilterService : ObservableObject
 
     public bool DriversReady => Vigem.Ready && HidHideDriver.Ready;
 
+    /// <summary>True when a controller is still hidden from games and something has to put it back.</summary>
+    public bool HasPendingRestore => _link is not null ? _remoteHasPendingRestore : HidHide.HasPendingRestore;
+
     public async Task RefreshDriversAsync()
     {
+        if (_link is not null)
+        {
+            _link.Send(AgentCommand.RefreshDrivers);
+            return;
+        }
+
         var (vigem, hidHide) = await Task.Run(() => (DriverStatus.CheckVigem(), DriverStatus.CheckHidHide()));
         Vigem = vigem;
         HidHideDriver = hidHide;
@@ -109,13 +151,19 @@ public sealed partial class FilterService : ObservableObject
     /// <param name="keepLearned">Carries over what the running filter learned during play, for edits to the same test.</param>
     public FilterProfile? ApplyProfile(FilterProfile? profile, bool keepLearned = false)
     {
+        // The agent applies the profile when it saves it, so the window has nothing to do here.
+        if (_link is not null)
+        {
+            return profile;
+        }
+
         if (profile is not null && keepLearned)
         {
             profile = WithLearned(profile);
         }
 
         _savedGrowths = 0;
-        _controller.Pump.Filter = profile is null ? null : new InputFilter(profile);
+        _controller.Pump!.Filter = profile is null ? null : new InputFilter(profile);
         return profile;
     }
 
@@ -125,7 +173,7 @@ public sealed partial class FilterService : ObservableObject
     /// </summary>
     public FilterProfile WithLearned(FilterProfile profile)
     {
-        if (_controller.Pump.Filter is not { } filter)
+        if (_controller.Pump?.Filter is not { } filter)
         {
             return profile;
         }
@@ -145,6 +193,12 @@ public sealed partial class FilterService : ObservableObject
     /// <summary>Installs whichever drivers are missing, then checks them again.</summary>
     public async Task<DriverSetupOutcome> InstallDriversAsync()
     {
+        if (_link is not null)
+        {
+            _link.Send(AgentCommand.InstallDrivers);
+            return new DriverSetupOutcome(DriverSetupResult.NothingToInstall, "");
+        }
+
         await RefreshDriversAsync();
         var packages = new List<DriverPackage>();
         if (!Vigem.Ready)
@@ -186,6 +240,12 @@ public sealed partial class FilterService : ObservableObject
             }
         }
 
+        if (_link is not null)
+        {
+            _link.Send(AgentCommand.StartFilter);
+            return IsOn;
+        }
+
         if (State != FilterState.Off)
         {
             return IsOn;
@@ -197,7 +257,7 @@ public sealed partial class FilterService : ObservableObject
             return false;
         }
 
-        var pump = _controller.Pump;
+        var pump = _controller.Pump!;
         var demo = _controller.IsDemo;
         var physicalSlot = pump.Latest.Connected ? pump.Latest.Slot : -1;
         if (!demo && physicalSlot < 0)
@@ -275,6 +335,12 @@ public sealed partial class FilterService : ObservableObject
 
     public async Task StopAsync()
     {
+        if (_link is not null)
+        {
+            _link.Send(AgentCommand.StopFilter);
+            return;
+        }
+
         if (State != FilterState.On)
         {
             return;
@@ -287,6 +353,12 @@ public sealed partial class FilterService : ObservableObject
 
     public async Task RestoreVisibilityAsync()
     {
+        if (_link is not null)
+        {
+            _link.Send(AgentCommand.RestoreVisibility);
+            return;
+        }
+
         var outcome = await HidHide.RestoreAsync();
         switch (outcome.Kind)
         {
@@ -304,6 +376,12 @@ public sealed partial class FilterService : ObservableObject
     /// <summary>Stops filtering during app exit and waits until the controller is visible to games again.</summary>
     public void ShutdownBlocking()
     {
+        // Closing a window must never stop the filter. Only the agent tears it down.
+        if (_link is not null)
+        {
+            return;
+        }
+
         try
         {
             Task.Run(TearDownAsync).Wait(TimeSpan.FromSeconds(30));
@@ -349,7 +427,7 @@ public sealed partial class FilterService : ObservableObject
 
     private async Task TearDownAsync()
     {
-        var pump = _controller.Pump;
+        var pump = _controller.Pump!;
         pump.Sink = null;
         _pad?.Dispose();
         _pad = null;

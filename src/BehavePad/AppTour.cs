@@ -97,10 +97,10 @@ public partial class App
         shell.CurrentPage = AppPage.Live;
         await Task.Delay(500);
 
-        var before = controller.Pump.Latest;
+        var before = controller.Pump!.Latest;
         var started = await filter.StartAsync();
         await Task.Delay(3000);
-        var frame = controller.Pump.Latest;
+        var frame = controller.Pump!.Latest;
 
         var lines = new List<string>
         {

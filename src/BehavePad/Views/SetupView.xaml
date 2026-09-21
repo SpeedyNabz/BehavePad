@@ -15,6 +15,13 @@
             <Setter Property="Background" Value="{StaticResource StrokeSubtleBrush}" />
         </Style>
 
+        <!-- Setting descriptions, capped to a readable line length on wide windows. -->
+        <Style x:Key="SettingCaption" TargetType="TextBlock" BasedOn="{StaticResource CaptionText}">
+            <Setter Property="Margin" Value="0,3,0,0" />
+            <Setter Property="MaxWidth" Value="720" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+        </Style>
+
         <Style x:Key="DriverBadge" TargetType="Border">
             <Setter Property="Width" Value="44" />
             <Setter Property="Height" Value="44" />
@@ -26,7 +33,7 @@
     </UserControl.Resources>
 
     <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-        <StackPanel MaxWidth="860" Margin="36,28,36,36" HorizontalAlignment="Left">
+        <StackPanel MaxWidth="1040" Margin="36,28,36,36">
             <TextBlock Style="{StaticResource H1Text}" Text="Setup" />
             <TextBlock Margin="0,6,0,0" Style="{StaticResource BodyText}" Text="Drivers, background behavior and troubleshooting." />
 
@@ -128,7 +135,7 @@
                         </TextBlock>
                     </StackPanel>
 
-                    <TextBlock Margin="0,16,0,0" Style="{StaticResource CaptionText}">
+                    <TextBlock MaxWidth="720" Margin="0,16,0,0" HorizontalAlignment="Left" Style="{StaticResource CaptionText}">
                         <Run Text="Both drivers are free and open source from Nefarius Software Solutions. BehavePad downloads the official installers, checks that each one is exactly the file it expects, and installs them after Windows asks for permission once. Restart your PC if asked. To install them yourself, download" />
                         <Hyperlink Command="{Binding OpenVigemDownloadCommand}" Foreground="{StaticResource AccentBrush}">ViGEmBus</Hyperlink>
                         <Run Text="and" />
@@ -144,28 +151,21 @@
                     <CheckBox IsChecked="{Binding HidePhysicalController}" Style="{StaticResource SwitchStyle}">
                         <StackPanel>
                             <TextBlock FontWeight="SemiBold" Text="Hide my controller from games while filtering" />
-                            <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="Games only see BehavePad's clean controller. Windows asks for permission each time, unless BehavePad runs as administrator. Your controller becomes visible again when the filter turns off." />
-                        </StackPanel>
-                    </CheckBox>
-                    <Border Style="{StaticResource Divider}" />
-                    <CheckBox IsChecked="{Binding MinimizeToTray}" Style="{StaticResource SwitchStyle}">
-                        <StackPanel>
-                            <TextBlock FontWeight="SemiBold" Text="Keep filtering after closing the window" />
-                            <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="BehavePad stays in the notification area while the filter is on." />
+                            <TextBlock Style="{StaticResource SettingCaption}" Text="Games only see BehavePad's clean controller. Windows asks for permission each time, unless BehavePad runs as administrator. Your controller becomes visible again when the filter turns off." />
                         </StackPanel>
                     </CheckBox>
                     <Border Style="{StaticResource Divider}" />
                     <CheckBox IsChecked="{Binding AutoFilterWhenConnected}" Style="{StaticResource SwitchStyle}">
                         <StackPanel>
                             <TextBlock FontWeight="SemiBold" Text="Keep the filter on whenever my controller is connected" />
-                            <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="Turns on by itself once your tested controller is there, whether that is at sign-in or hours later. It packs away again when the controller has been gone a while." />
+                            <TextBlock Style="{StaticResource SettingCaption}" Text="Turns on by itself once your tested controller is there, whether that is at sign-in or hours later. It packs away again when the controller has been gone a while." />
                         </StackPanel>
                     </CheckBox>
                     <Border Style="{StaticResource Divider}" />
                     <CheckBox IsChecked="{Binding LaunchAtSignIn}" Style="{StaticResource SwitchStyle}">
                         <StackPanel>
                             <TextBlock FontWeight="SemiBold" Text="Start BehavePad when I sign in" />
-                            <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="Opens quietly in the notification area." />
+                            <TextBlock Style="{StaticResource SettingCaption}" Text="Starts only the background service, which filters and sits in the notification area. The window opens when you ask for it." />
                         </StackPanel>
                     </CheckBox>
                 </StackPanel>
@@ -176,7 +176,7 @@
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <TextBlock FontWeight="SemiBold" Text="Which controller to read" />
-                    <TextBlock Margin="0,3,0,12" Style="{StaticResource CaptionText}" Text="Automatic picks the first connected controller. Choose a number if several are plugged in." />
+                    <TextBlock MaxWidth="720" Margin="0,3,0,12" HorizontalAlignment="Left" Style="{StaticResource CaptionText}" Text="Automatic picks the first connected controller. Choose a number if several are plugged in." />
                     <Border Style="{StaticResource SegmentHost}">
                         <StackPanel Orientation="Horizontal">
                             <RadioButton Content="Automatic" IsChecked="{Binding PreferredSlot, Converter={StaticResource EnumEquals}, ConverterParameter=-1}" Style="{StaticResource SegmentItem}" />
@@ -190,7 +190,7 @@
                     <CheckBox IsChecked="{Binding UseDemoController}" Style="{StaticResource SwitchStyle}">
                         <StackPanel>
                             <TextBlock FontWeight="SemiBold" Text="Use the demo controller" />
-                            <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="Try BehavePad without hardware. The demo controller has right stick drift, a creeping left trigger and a Y button that presses itself." />
+                            <TextBlock Style="{StaticResource SettingCaption}" Text="Try BehavePad without hardware. The demo controller has right stick drift, a creeping left trigger and a Y button that presses itself." />
                         </StackPanel>
                     </CheckBox>
                 </StackPanel>
@@ -201,10 +201,10 @@
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <DockPanel>
-                        <Button VerticalAlignment="Center" Command="{Binding RestoreVisibilityCommand}" Content="Restore" DockPanel.Dock="Right" Style="{StaticResource DangerButton}" />
+                        <Button VerticalAlignment="Center" controls:Ui.Glyph="&#xE7B3;" Command="{Binding RestoreVisibilityCommand}" Content="Restore" DockPanel.Dock="Right" Style="{StaticResource SecondaryButton}" />
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock FontWeight="SemiBold" Text="Restore controller visibility" />
-                            <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="If a game can't see your controller after BehavePad closed unexpectedly, this makes it visible again." />
+                            <TextBlock Style="{StaticResource SettingCaption}" Text="If a game can't see your controller after BehavePad closed unexpectedly, this makes it visible again." />
                             <TextBlock Margin="0,4,0,0"
                                        FontSize="12"
                                        Foreground="{StaticResource WarningBrush}"
@@ -228,15 +228,15 @@
                                    Visibility="{Binding IsElevated, Converter={StaticResource BoolToVisibility}}" />
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock FontWeight="SemiBold" Text="Fewer permission prompts" />
-                            <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="Running as administrator lets BehavePad hide and restore your controller without asking each time." />
+                            <TextBlock Style="{StaticResource SettingCaption}" Text="Running as administrator lets BehavePad hide and restore your controller without asking each time." />
                         </StackPanel>
                     </DockPanel>
                     <Border Style="{StaticResource Divider}" />
                     <DockPanel>
-                        <Button VerticalAlignment="Center" Command="{Binding ResetProfileCommand}" Content="Delete" DockPanel.Dock="Right" Style="{StaticResource SecondaryButton}" />
+                        <Button VerticalAlignment="Center" controls:Ui.Glyph="&#xE74D;" Command="{Binding ResetProfileCommand}" Content="Delete" DockPanel.Dock="Right" Style="{StaticResource DangerButton}" />
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock FontWeight="SemiBold" Text="Delete test results and filter" />
-                            <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="Start fresh, for example after replacing a thumbstick." />
+                            <TextBlock Style="{StaticResource SettingCaption}" Text="Start fresh, for example after replacing a thumbstick." />
                         </StackPanel>
                     </DockPanel>
                     <Border Style="{StaticResource Divider}" />
@@ -244,7 +244,7 @@
                         <Button VerticalAlignment="Center" controls:Ui.Glyph="&#xE838;" Command="{Binding OpenDataFolderCommand}" Content="Open" DockPanel.Dock="Right" Style="{StaticResource GhostButton}" />
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock FontWeight="SemiBold" Text="Data folder" />
-                            <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="{Binding DataFolder}" />
+                            <TextBlock Style="{StaticResource SettingCaption}" Text="{Binding DataFolder}" />
                         </StackPanel>
                     </DockPanel>
                 </StackPanel>
@@ -257,7 +257,7 @@
                     <CheckBox IsChecked="{Binding AutomaticUpdates}" Style="{StaticResource SwitchStyle}">
                         <StackPanel>
                             <TextBlock FontWeight="SemiBold" Text="Keep BehavePad up to date" />
-                            <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="Checks once a day, downloads the new release in the background, and installs it the next time you exit BehavePad. Your settings, last test and filter are kept." />
+                            <TextBlock Style="{StaticResource SettingCaption}" Text="Checks once a day, downloads the new release in the background, and installs it the next time you exit BehavePad. Your settings, last test and filter are kept." />
                         </StackPanel>
                     </CheckBox>
                     <Border Style="{StaticResource Divider}" />
@@ -270,7 +270,7 @@
                                 Style="{StaticResource GhostButton}" />
                         <StackPanel Margin="0,0,16,0">
                             <TextBlock FontWeight="SemiBold" Text="{Binding VersionText}" />
-                            <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}">
+                            <TextBlock Style="{StaticResource SettingCaption}">
                                 <Run Text="Updates come from BehavePad's" />
                                 <Hyperlink Command="{Binding OpenReleasePageCommand}" Foreground="{StaticResource AccentBrush}">GitHub releases</Hyperlink><Run Text=". Every download has to match the checksum GitHub published before BehavePad will run it." />
                             </TextBlock>

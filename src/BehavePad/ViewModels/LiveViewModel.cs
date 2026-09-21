@@ -35,7 +35,6 @@ public sealed partial class LiveViewModel : ObservableObject, IPageViewModel
     private readonly DispatcherTimer _saveTimer;
     private FilterProfile? _pending;
     private bool _syncing;
-    private InputFilter? _shownFilter;
     private int _shownGrowths;
 
     [ObservableProperty]
@@ -219,6 +218,9 @@ public sealed partial class LiveViewModel : ObservableObject, IPageViewModel
     public string PhysicalStatusText => Filter.IsOn && Filter.PhysicalHidden ? "Hidden from games" : "Visible to games";
 
     public bool PhysicalHidden => Filter.IsOn && Filter.PhysicalHidden;
+
+    /// <summary>True while the filter runs but games can still read the worn controller, which lets drift back in.</summary>
+    public bool PhysicalNeedsAttention => Filter.IsOn && !Filter.PhysicalHidden;
 
     public string VirtualStatusText => Filter.IsOn
         ? Filter.VirtualSlot is int slot ? $"Player {slot + 1}" : "Connected"
@@ -415,14 +417,13 @@ public sealed partial class LiveViewModel : ObservableObject, IPageViewModel
         }
     }
 
-    /// <summary>Shows the zones the running filter uses, including anything it learned during play.</summary>
+    /// <summary>
+    /// Shows the zones the running filter uses, including anything it learned during play. The agent folds
+    /// learned spots back into the saved profile as they are found, so that profile is the whole picture.
+    /// </summary>
     private void RefreshZones()
     {
-        var filter = _shell.Controller.Pump.Filter;
-        _shownFilter = filter;
-        _shownGrowths = filter?.Statistics.ZoneGrowths ?? 0;
-
-        if (filter?.Profile is not { } profile)
+        if ((_pending ?? _shell.Settings.Profile) is not { } profile)
         {
             LeftOutline = RightOutline = LeftGrownOutline = RightGrownOutline = null;
             LeftZoneCaption = RightZoneCaption = LearnedStatusText = "";
@@ -463,11 +464,12 @@ public sealed partial class LiveViewModel : ObservableObject, IPageViewModel
         {
             gain = 0;
             var settings = profile.Stick(side);
-            if (settings.Shape != ZoneShape.Fitted || filter.LearnedPoints(side).Count == 0 || filter.Zone(side) is not { } zone)
+            if (settings.Shape != ZoneShape.Fitted || settings.Learned.Count == 0)
             {
                 return null;
             }
 
+            var zone = Describe.FittedZone(settings);
             gain = Math.Max(zone.AreaShare - new StickZone(settings.Outline, settings.OutlineMargin).AreaShare, 0);
             return zone.Hull;
         }
@@ -484,6 +486,7 @@ public sealed partial class LiveViewModel : ObservableObject, IPageViewModel
         OnPropertyChanged(nameof(StatusDetail));
         OnPropertyChanged(nameof(PhysicalStatusText));
         OnPropertyChanged(nameof(PhysicalHidden));
+        OnPropertyChanged(nameof(PhysicalNeedsAttention));
         OnPropertyChanged(nameof(VirtualStatusText));
         OnPropertyChanged(nameof(ProfileStatusText));
         OnPropertyChanged(nameof(ShapeHint));
@@ -507,9 +510,10 @@ public sealed partial class LiveViewModel : ObservableObject, IPageViewModel
         PhantomBlockedText = frame.Statistics.PhantomPressesBlocked.ToString();
         PollRateText = frame.Connected && frame.PollRateHz > 0 ? $"{frame.PollRateHz:0} polls per second" : "";
 
-        var filter = _shell.Controller.Pump.Filter;
-        if (!ReferenceEquals(filter, _shownFilter) || (filter?.Statistics.ZoneGrowths ?? 0) != _shownGrowths)
+        // The agent counts every zone it grows, so a change there means new learned spots to draw.
+        if (frame.Statistics.ZoneGrowths != _shownGrowths)
         {
+            _shownGrowths = frame.Statistics.ZoneGrowths;
             RefreshZones();
         }
 

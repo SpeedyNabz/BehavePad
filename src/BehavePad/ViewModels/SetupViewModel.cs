@@ -22,9 +22,6 @@ public sealed partial class SetupViewModel : ObservableObject, IPageViewModel
     private bool _hidePhysicalController;
 
     [ObservableProperty]
-    private bool _minimizeToTray;
-
-    [ObservableProperty]
     private bool _autoFilterWhenConnected;
 
     [ObservableProperty]
@@ -76,16 +73,10 @@ public sealed partial class SetupViewModel : ObservableObject, IPageViewModel
 
     public string HidHideStatus => DescribeDriver(HidHide);
 
-    public bool HasPendingRestore => _shell.Filter.PhysicalHidden || _shell.Filter.HidHide.HasPendingRestore;
+    public bool HasPendingRestore => _shell.Filter.PhysicalHidden || _shell.Filter.HasPendingRestore;
 
-    public bool IsElevated
-    {
-        get
-        {
-            using var identity = WindowsIdentity.GetCurrent();
-            return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
-        }
-    }
+    /// <summary>Reported by the agent, because that is the process whose rights decide whether Windows asks.</summary>
+    public bool IsElevated => _shell.IsAgentElevated;
 
     public bool XInputMissing => !_shell.Controller.HasXInput;
 
@@ -106,7 +97,7 @@ public sealed partial class SetupViewModel : ObservableObject, IPageViewModel
 
     partial void OnHidePhysicalControllerChanged(bool value) => Save(s => s with { HidePhysicalController = value });
 
-    partial void OnMinimizeToTrayChanged(bool value) => Save(s => s with { MinimizeToTray = value });
+
 
     partial void OnAutoFilterWhenConnectedChanged(bool value) => Save(s => s with { AutoFilterWhenConnected = value });
 
@@ -117,7 +108,7 @@ public sealed partial class SetupViewModel : ObservableObject, IPageViewModel
             return;
         }
 
-        StartupRegistration.Apply(value);
+        // The agent registers itself, so signing in starts the background service rather than this window.
         Save(s => s with { LaunchAtSignIn = value });
     }
 
@@ -149,11 +140,7 @@ public sealed partial class SetupViewModel : ObservableObject, IPageViewModel
             return;
         }
 
-        if (!_shell.Filter.IsOn)
-        {
-            _shell.Controller.Pump.PreferredSlot = value;
-        }
-
+        // The agent owns the pump, and applies the new slot when it takes the setting.
         Save(s => s with { PreferredSlot = value });
     }
 
@@ -280,7 +267,7 @@ public sealed partial class SetupViewModel : ObservableObject, IPageViewModel
         {
             var settings = _shell.Settings.Settings;
             HidePhysicalController = settings.HidePhysicalController;
-            MinimizeToTray = settings.MinimizeToTray;
+
             AutoFilterWhenConnected = settings.AutoFilterWhenConnected;
             LaunchAtSignIn = settings.LaunchAtSignIn;
             UseDemoController = _shell.Controller.IsDemo;

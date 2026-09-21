@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Text.Json;
 using BehavePad.Core.Storage;
 using BehavePad.Core.Update;
+using BehavePad.Ipc;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace BehavePad.Services;
@@ -53,6 +54,9 @@ public sealed partial class UpdateService : ObservableObject
     private readonly Func<bool> _isSafeToApply;
     private UpdateRecord _record;
 
+    /// <summary>Set in the window, null in the agent.</summary>
+    private AgentLink? _link;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsBusy), nameof(IsReady))]
     private UpdateState _state;
@@ -72,6 +76,19 @@ public sealed partial class UpdateService : ObservableObject
 
     [ObservableProperty]
     private string? _stagedVersion;
+
+    /// <summary>The window's constructor: the agent checks and installs, this only shows what it reports.</summary>
+    public static UpdateService Remote(AgentLink link, SettingsService settings) => new(settings) { _link = link };
+
+    /// <summary>Copies the agent's update progress into the window.</summary>
+    public void ApplyRemoteState(AgentState state)
+    {
+        State = state.UpdateState;
+        Status = state.UpdateStatus;
+        StatusIsError = state.UpdateStatusIsError;
+        Progress = state.UpdateProgress;
+        StagedVersion = state.StagedVersion;
+    }
 
     /// <param name="isSafeToApply">Answers whether BehavePad can restart right now. An update waits while the filter is on.</param>
     public UpdateService(SettingsService settings, Func<bool>? isSafeToApply = null)
@@ -103,6 +120,12 @@ public sealed partial class UpdateService : ObservableObject
     /// </summary>
     public async Task CheckAsync(bool automatic, CancellationToken cancellationToken = default)
     {
+        if (_link is not null)
+        {
+            _link.Send(AgentCommand.CheckForUpdates);
+            return;
+        }
+
         if (IsBusy || State == UpdateState.Ready)
         {
             return;
@@ -164,6 +187,12 @@ public sealed partial class UpdateService : ObservableObject
     /// </summary>
     public bool TryApply(bool relaunch)
     {
+        if (_link is not null)
+        {
+            _link.Send(AgentCommand.InstallUpdate);
+            return false;
+        }
+
         if (StagedPath is not { } staged || !File.Exists(staged) || Environment.ProcessPath is not { } target)
         {
             return false;
