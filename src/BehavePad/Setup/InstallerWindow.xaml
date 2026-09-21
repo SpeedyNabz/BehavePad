@@ -1,0 +1,174 @@
+<Window x:Class="BehavePad.Setup.InstallerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:branding="clr-namespace:BehavePad.Branding"
+        xmlns:controls="clr-namespace:BehavePad.Controls"
+        xmlns:setup="clr-namespace:BehavePad.Setup"
+        Title="Install BehavePad"
+        Width="720"
+        Height="700"
+        d:DataContext="{d:DesignInstance Type=setup:InstallerViewModel}"
+        Background="{StaticResource WindowBrush}"
+        FontFamily="{StaticResource UiFont}"
+        FontSize="14"
+        Foreground="{StaticResource TextPrimaryBrush}"
+        ResizeMode="CanMinimize"
+        UseLayoutRounding="True"
+        WindowStartupLocation="CenterScreen"
+        mc:Ignorable="d">
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="38"
+                      CornerRadius="0"
+                      GlassFrameThickness="0"
+                      ResizeBorderThickness="0"
+                      UseAeroCaptionButtons="False" />
+    </WindowChrome.WindowChrome>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="38" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <StackPanel HorizontalAlignment="Right" Orientation="Horizontal" WindowChrome.IsHitTestVisibleInChrome="True">
+            <Button AutomationProperties.Name="Minimize" Click="OnMinimizeClick" Content="&#xE921;" Style="{StaticResource TitleBarButton}" ToolTip="Minimize" />
+            <Button AutomationProperties.Name="Close" Click="OnCloseClick" Content="&#xE8BB;" Style="{StaticResource TitleBarCloseButton}" ToolTip="Close" />
+        </StackPanel>
+
+        <Grid Grid.Row="1" Margin="34,0,34,30">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Brand -->
+            <DockPanel Margin="0,0,0,22">
+                <controls:PadMascot Width="96"
+                                    Height="96"
+                                    DockPanel.Dock="Right"
+                                    Happy="True"
+                                    HaloOn="{Binding Finished}" />
+                <StackPanel VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                        <Image Width="34" Height="34" Source="{x:Static branding:BrandArt.SmallMarkImage}" />
+                        <TextBlock Margin="8,0,0,0"
+                                   VerticalAlignment="Center"
+                                   FontFamily="{StaticResource BrandFont}"
+                                   FontSize="21"
+                                   FontWeight="SemiBold">
+                            <Run Foreground="{StaticResource TextPrimaryBrush}" Text="Behave" /><Run Foreground="{StaticResource AccentBrush}" Text="Pad" />
+                        </TextBlock>
+                    </StackPanel>
+                    <TextBlock Margin="0,12,0,0" Style="{StaticResource H1Text}" Text="{Binding Headline}" />
+                    <TextBlock MaxWidth="430"
+                               Margin="0,6,0,0"
+                               HorizontalAlignment="Left"
+                               Style="{StaticResource BodyText}"
+                               Text="{Binding Subtext}" />
+                </StackPanel>
+            </DockPanel>
+
+            <!-- Choices -->
+            <Border Grid.Row="1"
+                    VerticalAlignment="Top"
+                    Style="{StaticResource Card}"
+                    Visibility="{Binding ShowChoices, Converter={StaticResource BoolToVisibility}}">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource OverlineText}" Text="INSTALL TO" />
+                    <TextBlock Margin="0,4,0,0" Style="{StaticResource CaptionText}" Text="{Binding Location}" />
+
+                    <Border Height="1" Margin="0,16" Background="{StaticResource StrokeSubtleBrush}" />
+
+                    <CheckBox IsChecked="{Binding DesktopShortcut}" Style="{StaticResource SwitchStyle}">
+                        <TextBlock FontWeight="SemiBold" Text="Desktop shortcut" />
+                    </CheckBox>
+                    <Border Height="1" Margin="0,14" Background="{StaticResource StrokeSubtleBrush}" />
+                    <CheckBox IsChecked="{Binding StartMenuShortcut}" Style="{StaticResource SwitchStyle}">
+                        <TextBlock FontWeight="SemiBold" Text="Start menu shortcut" />
+                    </CheckBox>
+                    <Border Height="1" Margin="0,14" Background="{StaticResource StrokeSubtleBrush}" />
+                    <CheckBox IsChecked="{Binding StartAtSignIn}" Style="{StaticResource SwitchStyle}">
+                        <StackPanel>
+                            <TextBlock FontWeight="SemiBold" Text="Start BehavePad when I sign in" />
+                            <TextBlock MaxWidth="430"
+                                       Margin="0,3,0,0"
+                                       HorizontalAlignment="Left"
+                                       Style="{StaticResource CaptionText}"
+                                       Text="Starts only the background service, so a tested controller is covered from the moment you turn it on." />
+                        </StackPanel>
+                    </CheckBox>
+                    <Border Height="1" Margin="0,14" Background="{StaticResource StrokeSubtleBrush}" />
+                    <CheckBox IsChecked="{Binding InstallDrivers}" Style="{StaticResource SwitchStyle}">
+                        <StackPanel>
+                            <TextBlock FontWeight="SemiBold" Text="Install the drivers for in-game filtering" />
+                            <TextBlock MaxWidth="430"
+                                       Margin="0,3,0,0"
+                                       HorizontalAlignment="Left"
+                                       Style="{StaticResource CaptionText}"
+                                       Text="ViGEmBus and HidHide, both free and open source from Nefarius Software Solutions. Windows asks for permission once." />
+                        </StackPanel>
+                    </CheckBox>
+                </StackPanel>
+            </Border>
+
+            <!-- Progress -->
+            <Border Grid.Row="1"
+                    VerticalAlignment="Top"
+                    Style="{StaticResource Card}"
+                    Visibility="{Binding ShowProgress, Converter={StaticResource BoolToVisibility}}">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource H3Text}" Text="{Binding StepText}" />
+                    <ProgressBar Margin="0,16,0,0"
+                                 IsIndeterminate="{Binding IsIndeterminate}"
+                                 Maximum="1"
+                                 Style="{StaticResource ThinProgress}"
+                                 Value="{Binding Progress, Mode=OneWay}" />
+                    <TextBlock Margin="0,14,0,0"
+                               Style="{StaticResource CaptionText}"
+                               Text="{Binding DetailText}"
+                               Visibility="{Binding DetailText, Converter={StaticResource NullToVisibility}}" />
+                </StackPanel>
+            </Border>
+
+            <!-- Done -->
+            <Border Grid.Row="1"
+                    VerticalAlignment="Top"
+                    Background="{StaticResource AccentSoftBrush}"
+                    BorderBrush="{StaticResource AccentBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="16"
+                    Padding="22"
+                    Visibility="{Binding Finished, Converter={StaticResource BoolToVisibility}}">
+                <StackPanel>
+                    <TextBlock Foreground="{StaticResource AccentBrush}" Style="{StaticResource H3Text}" Text="{Binding StepText}" />
+                    <TextBlock Margin="0,6,0,0"
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               Style="{StaticResource BodyText}"
+                               Text="{Binding DetailText}"
+                               Visibility="{Binding DetailText, Converter={StaticResource NullToVisibility}}" />
+                </StackPanel>
+            </Border>
+
+            <!-- Actions -->
+            <StackPanel Grid.Row="2"
+                        Margin="0,20,0,0"
+                        HorizontalAlignment="Right"
+                        Orientation="Horizontal">
+                <Button Margin="0,0,10,0"
+                        Command="{Binding CancelCommand}"
+                        Content="{Binding CancelText}"
+                        Style="{StaticResource GhostButton}"
+                        Visibility="{Binding ShowCancel, Converter={StaticResource BoolToVisibility}}" />
+                <Button controls:Ui.Glyph="{Binding PrimaryGlyph}"
+                        Command="{Binding PrimaryCommand}"
+                        Content="{Binding PrimaryText}"
+                        IsEnabled="{Binding CanPrimary}"
+                        Style="{StaticResource PrimaryButton}" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>
