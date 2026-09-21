@@ -54,13 +54,26 @@ With a shaped zone you can also turn on **Learn drift while you play**. It grows
 | --- | --- |
 | ![Snap-back check](docs/screenshots/test-snapback.png) | ![Live filter with shaped zone settings](docs/screenshots/live-shaped.png) |
 
+## How it is put together
+
+BehavePad runs as two processes:
+
+- **The background service** does the work. It reads the controller, runs the filter, owns the virtual controller and HidHide, and keeps a notification area icon. It starts when you sign in, if you asked it to, and it keeps filtering whether or not a window is open.
+- **The window** is a controller for that service. It connects over a named pipe, shows what the service reports, and asks it to do things. Opening or closing the window never interrupts a game, because the window never touches the controller itself.
+
+That is why closing the window leaves your games protected, and why **Exit BehavePad** on the notification area icon is what actually stops it.
+
 ## Install
 
-1. Download `BehavePad.exe` from the [latest release](https://github.com/SpeedyNabz/BehavePad/releases/latest) and run it. Testing and the live preview work straight away.
-2. To filter inside games, BehavePad needs two free, open-source drivers from Nefarius Software Solutions. Just turn the filter on and BehavePad installs them for you, or choose **Install drivers** on the Setup page whenever you like.
+1. Download `BehavePadSetup.exe` from the [latest release](https://github.com/SpeedyNabz/BehavePad/releases/latest) and run it. It installs BehavePad just for you, so Windows only asks for permission when the drivers go in. You choose a desktop shortcut, a start menu shortcut, and whether the background service starts when you sign in.
+2. Setup installs the two free, open-source drivers from Nefarius Software Solutions that in-game filtering needs. You can untick that and do it later from the Setup page.
    - [ViGEmBus](https://github.com/nefarius/ViGEmBus) creates the virtual controller games read. It is required.
    - [HidHide](https://github.com/nefarius/HidHide) hides the original controller from games. It is strongly recommended.
 3. Restart your PC if BehavePad asks you to.
+
+To remove BehavePad, use **Add or remove programs** in Windows settings. The drivers are left in place, because other apps may use them.
+
+Prefer to keep it portable? Download `BehavePad.exe` instead and run it from anywhere. It behaves exactly the same; it just never copies itself or adds shortcuts.
 
 BehavePad downloads the official installers from GitHub, checks that each one is exactly the file it expects, and runs them silently after Windows asks for permission once. If you'd rather install the drivers yourself, the Setup page links to both.
 
@@ -72,8 +85,8 @@ No controller at hand? Turn on **Use the demo controller** in Setup. It has righ
 
 - Once you have tested a controller, BehavePad turns the filter on for you whenever that controller is connected. The sidebar switch reads **Waiting for controller** until it is.
 - To turn the filter on or off by hand, use the sidebar switch or the notification area icon.
-- Closing the window while the filter is on keeps BehavePad running in the notification area.
-- Setup can also start BehavePad when you sign in, so a tested controller is covered from the moment you turn it on.
+- Closing the window only closes the window. The background service keeps filtering, and **Exit BehavePad** on the notification area icon is what stops it.
+- Setup can also start the background service when you sign in, so a tested controller is covered from the moment you turn it on.
 - Restart any game that was already open when you turned the filter on, so it picks up the clean controller.
 
 Hiding a controller needs administrator rights, so Windows asks for permission when the filter turns on and off. Choose **Restart as administrator** in Setup to skip those prompts.
@@ -101,13 +114,21 @@ dotnet test tests/BehavePad.Core.Tests
 dotnet run --project src/BehavePad
 ```
 
-Run with `--demo` to use the demo controller without changing saved settings.
+Run with `--demo` to use the demo controller without changing saved settings. The window starts a background service if none is running, so `dotnet run` gives you both halves.
 
 To publish a single self-contained executable:
 
 ```powershell
 dotnet publish src/BehavePad -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
 ```
+
+`BehavePadSetup.exe` in a release is the same file under another name. BehavePad shows its installer when it is started from a copy named `BehavePadSetup*`, or with `--install`, so the setup program is the app itself and cannot drift from its look:
+
+```powershell
+Copy-Item publish/BehavePad.exe publish/BehavePadSetup.exe
+```
+
+Run with `--agent` to start only the background service, and `--uninstall` to remove an installed copy.
 
 The icon and brand artwork are generated from vector code in `src/BehavePad/Branding/BrandArt.cs`:
 
@@ -127,7 +148,7 @@ dotnet run --project src/BehavePad -- --demo --capture-tour docs/tour
 | Folder | Contents |
 | --- | --- |
 | `src/BehavePad.Core` | Controller input, the drift test recorders and analyzer, the filter, and the polling engine. It has no UI code. |
-| `src/BehavePad` | The WPF app: views, view models, the ViGEmBus virtual controller, HidHide integration and the tray icon. |
+| `src/BehavePad` | The Windows app. `Agent/` is the background service, `Ipc/` the pipe between it and the window, `Views/` and `ViewModels/` the window, `Services/` the virtual controller, HidHide, updates and settings, and `Setup/` the installer. |
 | `tests/BehavePad.Core.Tests` | Unit tests for the analyzer, the filter math, the recorders, storage and the engine. |
 | `tools/BrandKit` | Renders the app icon and brand images. |
 | `assets/brand` | Logo, icon and banner images. |
