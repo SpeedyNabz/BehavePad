@@ -425,7 +425,7 @@
 
                     <ToggleButton x:Name="AdvancedToggle" Content="Advanced drift handling" Style="{StaticResource DisclosureToggle}" />
                     <StackPanel Margin="0,10,0,0" Visibility="{Binding IsChecked, ElementName=AdvancedToggle, Converter={StaticResource BoolToVisibility}}">
-                        <CheckBox IsChecked="{Binding AdaptiveCentering}" Style="{StaticResource SwitchStyle}" Visibility="{Binding AnyCircle, Converter={StaticResource BoolToVisibility}}">
+                        <CheckBox AutomationProperties.Name="Adaptive drift guard" IsChecked="{Binding AdaptiveCentering}" Style="{StaticResource SwitchStyle}" Visibility="{Binding AnyCircle, Converter={StaticResource BoolToVisibility}}">
                             <StackPanel>
                                 <TextBlock FontWeight="SemiBold" Text="Adaptive drift guard" />
                                 <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="For sticks with a round zone. Follows the stick's resting spot if it shifts during long sessions. It can also cancel a very small tilt held perfectly still for a few seconds, so it starts off." />
@@ -433,7 +433,7 @@
                         </CheckBox>
 
                         <StackPanel Margin="0,12,0,0" Visibility="{Binding AnyFitted, Converter={StaticResource BoolToVisibility}}">
-                            <CheckBox IsChecked="{Binding LearnZone}" Style="{StaticResource SwitchStyle}">
+                            <CheckBox AutomationProperties.Name="Learn drift while you play" IsChecked="{Binding LearnZone}" Style="{StaticResource SwitchStyle}">
                                 <StackPanel>
                                     <TextBlock FontWeight="SemiBold" Text="Learn drift while you play" />
                                     <TextBlock Margin="0,3,0,0" Style="{StaticResource CaptionText}" Text="For sticks with a shaped zone. Grows the zone when a stick you let go of creeps somewhere new while every other control is idle. The same spot has to come back after two separate releases, and growth stays within 30% of the tested zone. A slow, deliberate push made right after letting go can still be learned, so it starts off." />

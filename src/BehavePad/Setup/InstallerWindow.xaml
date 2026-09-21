@@ -91,7 +91,7 @@
                         <TextBlock FontWeight="SemiBold" Text="Start menu shortcut" />
                     </CheckBox>
                     <Border Height="1" Margin="0,14" Background="{StaticResource StrokeSubtleBrush}" />
-                    <CheckBox IsChecked="{Binding StartAtSignIn}" Style="{StaticResource SwitchStyle}">
+                    <CheckBox AutomationProperties.Name="Start BehavePad when I sign in" IsChecked="{Binding StartAtSignIn}" Style="{StaticResource SwitchStyle}">
                         <StackPanel>
                             <TextBlock FontWeight="SemiBold" Text="Start BehavePad when I sign in" />
                             <TextBlock MaxWidth="430"
@@ -102,7 +102,7 @@
                         </StackPanel>
                     </CheckBox>
                     <Border Height="1" Margin="0,14" Background="{StaticResource StrokeSubtleBrush}" />
-                    <CheckBox IsChecked="{Binding InstallDrivers}" Style="{StaticResource SwitchStyle}">
+                    <CheckBox AutomationProperties.Name="Install the drivers for in-game filtering" IsChecked="{Binding InstallDrivers}" Style="{StaticResource SwitchStyle}">
                         <StackPanel>
                             <TextBlock FontWeight="SemiBold" Text="Install the drivers for in-game filtering" />
                             <TextBlock MaxWidth="430"

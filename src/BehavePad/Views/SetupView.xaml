@@ -148,21 +148,21 @@
             <TextBlock Margin="0,30,0,12" Style="{StaticResource H2Text}" Text="Behavior" />
             <Border Style="{StaticResource Card}">
                 <StackPanel>
-                    <CheckBox IsChecked="{Binding HidePhysicalController}" Style="{StaticResource SwitchStyle}">
+                    <CheckBox AutomationProperties.Name="Hide my controller from games while filtering" IsChecked="{Binding HidePhysicalController}" Style="{StaticResource SwitchStyle}">
                         <StackPanel>
                             <TextBlock FontWeight="SemiBold" Text="Hide my controller from games while filtering" />
                             <TextBlock Style="{StaticResource SettingCaption}" Text="Games only see BehavePad's clean controller. Windows asks for permission each time, unless BehavePad runs as administrator. Your controller becomes visible again when the filter turns off." />
                         </StackPanel>
                     </CheckBox>
                     <Border Style="{StaticResource Divider}" />
-                    <CheckBox IsChecked="{Binding AutoFilterWhenConnected}" Style="{StaticResource SwitchStyle}">
+                    <CheckBox AutomationProperties.Name="Keep the filter on whenever my controller is connected" IsChecked="{Binding AutoFilterWhenConnected}" Style="{StaticResource SwitchStyle}">
                         <StackPanel>
                             <TextBlock FontWeight="SemiBold" Text="Keep the filter on whenever my controller is connected" />
                             <TextBlock Style="{StaticResource SettingCaption}" Text="Turns on by itself once your tested controller is there, whether that is at sign-in or hours later. It packs away again when the controller has been gone a while." />
                         </StackPanel>
                     </CheckBox>
                     <Border Style="{StaticResource Divider}" />
-                    <CheckBox IsChecked="{Binding LaunchAtSignIn}" Style="{StaticResource SwitchStyle}">
+                    <CheckBox AutomationProperties.Name="Start BehavePad when I sign in" IsChecked="{Binding LaunchAtSignIn}" Style="{StaticResource SwitchStyle}">
                         <StackPanel>
                             <TextBlock FontWeight="SemiBold" Text="Start BehavePad when I sign in" />
                             <TextBlock Style="{StaticResource SettingCaption}" Text="Starts only the background service, which filters and sits in the notification area. The window opens when you ask for it." />
@@ -187,7 +187,7 @@
                         </StackPanel>
                     </Border>
                     <Border Style="{StaticResource Divider}" />
-                    <CheckBox IsChecked="{Binding UseDemoController}" Style="{StaticResource SwitchStyle}">
+                    <CheckBox AutomationProperties.Name="Use the demo controller" IsChecked="{Binding UseDemoController}" Style="{StaticResource SwitchStyle}">
                         <StackPanel>
                             <TextBlock FontWeight="SemiBold" Text="Use the demo controller" />
                             <TextBlock Style="{StaticResource SettingCaption}" Text="Try BehavePad without hardware. The demo controller has right stick drift, a creeping left trigger and a Y button that presses itself." />
@@ -254,7 +254,7 @@
             <TextBlock Margin="0,30,0,12" Style="{StaticResource H2Text}" Text="Updates" />
             <Border Style="{StaticResource Card}">
                 <StackPanel>
-                    <CheckBox IsChecked="{Binding AutomaticUpdates}" Style="{StaticResource SwitchStyle}">
+                    <CheckBox AutomationProperties.Name="Keep BehavePad up to date" IsChecked="{Binding AutomaticUpdates}" Style="{StaticResource SwitchStyle}">
                         <StackPanel>
                             <TextBlock FontWeight="SemiBold" Text="Keep BehavePad up to date" />
                             <TextBlock Style="{StaticResource SettingCaption}" Text="Checks once a day, downloads the new release in the background, and installs it the next time you exit BehavePad. Your settings, last test and filter are kept." />
