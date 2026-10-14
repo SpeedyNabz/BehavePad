@@ -6,6 +6,7 @@ using System.Text.Json;
 using BehavePad.Core.Storage;
 using BehavePad.Core.Update;
 using BehavePad.Ipc;
+using BehavePad.ViewModels;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace BehavePad.Services;
@@ -182,17 +183,79 @@ public sealed partial class UpdateService : ObservableObject
     }
 
     /// <summary>
+    /// The window's half of Restart and install. The agent turns the filter off, hands over to the new build and exits,
+    /// and the new build starts BehavePad again. Returns true once the agent has gone, so the window can close rather
+    /// than hold back the one the new build opens, or false when the agent did not go ahead.
+    /// </summary>
+    public async Task<bool> InstallAsync()
+    {
+        if (_link is not { IsConnected: true } link)
+        {
+            return false;
+        }
+
+        var outcome = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        void OnConnectedChanged(object? sender, bool connected)
+        {
+            if (!connected)
+            {
+                outcome.TrySetResult(true);
+            }
+        }
+
+        // The agent stays Ready until it exits, so leaving Ready means it is not installing after all.
+        void OnStateChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(State) && State != UpdateState.Ready)
+            {
+                outcome.TrySetResult(false);
+            }
+        }
+
+        link.ConnectedChanged += OnConnectedChanged;
+        PropertyChanged += OnStateChanged;
+        try
+        {
+            link.Send(AgentCommand.InstallUpdate);
+            return await outcome.Task;
+        }
+        finally
+        {
+            link.ConnectedChanged -= OnConnectedChanged;
+            PropertyChanged -= OnStateChanged;
+        }
+    }
+
+    /// <summary>
+    /// Checks the staged build is still on disk before the agent exits to install it. When something has cleared it
+    /// from the temp folder, says so and forgets it, so Check now downloads it again.
+    /// </summary>
+    public bool BeginInstall()
+    {
+        if (!IsReady)
+        {
+            return false;
+        }
+
+        if (StagedPath is not { } staged || !File.Exists(staged))
+        {
+            StagedPath = null;
+            StagedVersion = null;
+            Save(new UpdateRecord { LastCheck = _record.LastCheck });
+            Finish(UpdateState.Failed, "BehavePad could not find the update it downloaded. Choose Check now to download it again.", isError: true);
+            return false;
+        }
+
+        Status = $"Installing BehavePad {StagedVersion}";
+        return true;
+    }
+
+    /// <summary>
     /// Installs a staged build over this one. The caller must already have stopped filtering, because the controller
     /// has to be visible to games again before BehavePad goes away. Returns false when there is nothing to install.
     /// </summary>
     public bool TryApply(bool relaunch)
     {
-        if (_link is not null)
-        {
-            _link.Send(AgentCommand.InstallUpdate);
-            return false;
-        }
-
         if (StagedPath is not { } staged || !File.Exists(staged) || Environment.ProcessPath is not { } target)
         {
             return false;
@@ -208,7 +271,14 @@ public sealed partial class UpdateService : ObservableObject
                 Arguments = arguments,
             });
 
-            return process is not null;
+            if (process is null)
+            {
+                return false;
+            }
+
+            // The new build does the swap from here, so nothing may start it a second time.
+            StagedPath = null;
+            return true;
         }
         catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or IOException)
         {
@@ -287,17 +357,18 @@ public sealed partial class UpdateService : ObservableObject
         }
 
         WaitForExit(processId);
-        if (!TryReplace(source, target))
-        {
-            return 1;
-        }
+        var replaced = TryReplace(source, target);
 
+        // Even when the swap failed, so BehavePad carries on with the old build rather than not at all.
         if (args.Contains(RelaunchAfterArgument))
         {
-            TryStart(target);
+            // The background service first. A window from 1.5.1 or earlier stays open through an update, holding
+            // back the new window, and only reconnects to whichever service is running.
+            TryStart(target, AgentContract.AgentArgument);
+            TryStart(target, SetupViewModel.RelaunchArgument);
         }
 
-        return 0;
+        return replaced ? 0 : 1;
     }
 
     private async Task DownloadAsync(UpdateCandidate candidate, CancellationToken cancellationToken)
@@ -338,6 +409,12 @@ public sealed partial class UpdateService : ObservableObject
         var deadline = DateTime.UtcNow + ReplaceTimeout;
         while (true)
         {
+            // Builds before 1.5.2 start this helper twice on their way out, and the first copy to get here does the work.
+            if (IsCopyOf(target, source))
+            {
+                return true;
+            }
+
             try
             {
                 TryDelete(backup);
@@ -376,11 +453,19 @@ public sealed partial class UpdateService : ObservableObject
         }
     }
 
-    private static void TryStart(string path)
+    /// <summary>File.Copy keeps the write time, so a file with the same size and write time is a copy of that build.</summary>
+    private static bool IsCopyOf(string path, string source)
+    {
+        var copy = new FileInfo(path);
+        var original = new FileInfo(source);
+        return copy.Exists && copy.Length == original.Length && copy.LastWriteTimeUtc == original.LastWriteTimeUtc;
+    }
+
+    private static void TryStart(string path, string arguments)
     {
         try
         {
-            using var _ = Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+            using var _ = Process.Start(new ProcessStartInfo(path, arguments) { UseShellExecute = true });
         }
         catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or IOException)
         {

@@ -172,13 +172,9 @@ public sealed partial class SetupViewModel : ObservableObject, IPageViewModel
     [RelayCommand]
     private async Task InstallUpdateAsync()
     {
-        // Stop filtering first, so the controller is visible to games again before BehavePad goes away.
-        if (_shell.Filter.IsOn)
-        {
-            await _shell.Filter.StopAsync();
-        }
-
-        if (_shell.Update.TryApply(relaunch: true))
+        // The background service turns the filter off itself before it goes. Once it has, this window closes too,
+        // so the window the new build opens can take its place.
+        if (await _shell.Update.InstallAsync())
         {
             Application.Current.Shutdown();
         }

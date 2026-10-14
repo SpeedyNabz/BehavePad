@@ -26,6 +26,7 @@ public sealed class AgentHost : IDisposable
     private readonly DispatcherTimer _frameTimer;
     private AgentState _lastState = new();
     private bool _exiting;
+    private bool _restartAfterUpdate;
 
     public AgentHost(bool demo)
     {
@@ -101,7 +102,7 @@ public sealed class AgentHost : IDisposable
     public void ShutdownBlocking()
     {
         _filter.ShutdownBlocking();
-        _update.TryApply(relaunch: false);
+        _update.TryApply(relaunch: _restartAfterUpdate);
     }
 
     public void Dispose()
@@ -250,7 +251,7 @@ public sealed class AgentHost : IDisposable
                 _ = _update.CheckAsync(automatic: false);
                 break;
             case AgentCommand.InstallUpdate:
-                _ = InstallUpdateAsync();
+                InstallUpdate();
                 break;
             case AgentCommand.SetDemoScenario:
                 if (envelope.Read<DemoScenarioRequest>() is { } scenario)
@@ -312,13 +313,20 @@ public sealed class AgentHost : IDisposable
         _filter.ApplyProfile(_settings.Profile);
     }
 
-    private async Task InstallUpdateAsync()
+    /// <summary>
+    /// Leaves the way Exit on the tray icon does, which turns the filter off and installs a staged build on the way
+    /// out, and has the new build start BehavePad again. Exiting in one blocking step keeps the filter from turning
+    /// itself back on for a controller that is still connected.
+    /// </summary>
+    private void InstallUpdate()
     {
-        await _filter.StopAsync();
-        if (_update.TryApply(relaunch: true))
+        if (!_update.BeginInstall())
         {
-            ExitAll();
+            return;
         }
+
+        _restartAfterUpdate = true;
+        ExitAll();
     }
 
     /// <summary>Sends the state when anything in it moved, so an idle agent stays quiet on the wire.</summary>
