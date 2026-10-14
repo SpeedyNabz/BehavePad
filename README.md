@@ -14,8 +14,7 @@ It runs on Windows 10 and 11 and works with any XInput controller: Xbox One, Xbo
 1. **Test.** You set the controller down and let go. BehavePad records every stick, trigger and button for a few seconds. Then you flick each stick to the edge and release it four times, so BehavePad can see where worn springs come to rest.
 2. **Build a filter.** BehavePad measures how far each stick sits from center, how much it wobbles, and how far its rest spot wanders. It then builds a filter for that exact controller:
    - a new center for each stick at its real rest position, with both edges still reaching full travel,
-   - an ignore zone just big enough to cover the measured drift, with a smooth ramp so small movements still register. It is round by default, or shaped to the drift (see below),
-   - a small hysteresis band so the stick doesn't flicker at the deadzone edge,
+   - an ignore zone just big enough to cover the measured drift, with a smooth ramp so small movements still register. It is round by default, or shaped to the drift (see below). A stick is only held back while it sits inside the zone the Live filter page draws, and output starts the moment it crosses that edge,
    - a trigger deadzone that covers any resting pressure,
    - a short press delay for buttons that pressed themselves, and a block for buttons that are stuck down.
 3. **Play.** BehavePad reads the real controller about 1,000 times a second and passes the cleaned input to a virtual Xbox controller. Games read the virtual one, and rumble from games is passed back to the real controller. HidHide hides the original controller from games, so the drift can't sneak back in.

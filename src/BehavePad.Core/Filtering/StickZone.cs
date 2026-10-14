@@ -3,9 +3,9 @@ using BehavePad.Core.Input;
 namespace BehavePad.Core.Filtering;
 
 /// <summary>
-/// A fitted ignore zone: the convex outline around every spot a drifting stick was seen, grown by a margin.
-/// The outline stays convex so its nearest point moves smoothly with the stick, which keeps output free of jumps.
-/// Distances use normalized stick units where 1 is full deflection.
+/// An ignore zone: the convex outline around every spot a drifting stick was seen, grown by a margin. A round zone is
+/// one corner at the stick's center, grown by its radius. The outline stays convex so its nearest point moves smoothly
+/// with the stick, which keeps output free of jumps. Distances use normalized stick units where 1 is full deflection.
 /// </summary>
 public sealed class StickZone
 {

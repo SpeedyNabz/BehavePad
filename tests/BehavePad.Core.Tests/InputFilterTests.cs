@@ -39,17 +39,54 @@ public class InputFilterTests
     }
 
     [Fact]
-    public void Hysteresis_prevents_flicker_at_the_deadzone_edge()
+    public void Round_zone_blocks_exactly_the_circle_the_live_plot_draws()
     {
+        // Far off center, where the zone used to stretch past its circle on one side and fall short on the other.
+        var center = new StickPoint(0.3, 0.2);
         var filter = new InputFilter(new FilterProfile
         {
-            RightStick = new StickFilterSettings { Deadzone = 0.1, Hysteresis = 0.02, OuterDeadzone = 1.0 },
+            RightStick = new StickFilterSettings { CenterX = center.X, CenterY = center.Y, Deadzone = 0.2 },
         });
 
-        Assert.Equal((short)0, filter.Apply(WithRight(new StickPoint(0.11, 0)), 0).RightX);
-        Assert.NotEqual((short)0, filter.Apply(WithRight(new StickPoint(0.13, 0)), 1).RightX);
-        Assert.NotEqual((short)0, filter.Apply(WithRight(new StickPoint(0.105, 0)), 2).RightX);
-        Assert.Equal((short)0, filter.Apply(WithRight(new StickPoint(0.095, 0)), 3).RightX);
+        AssertBlocksOnlyInside(filter, center, p => p.DistanceTo(center) - 0.2);
+    }
+
+    [Fact]
+    public void Shaped_zone_blocks_exactly_the_outline_the_live_plot_draws()
+    {
+        var settings = new StickFilterSettings
+        {
+            Shape = ZoneShape.Fitted,
+            Outline = [new StickPoint(0, -0.12), new StickPoint(0.047, 0.686)],
+            OutlineMargin = 0.035,
+        };
+        var zone = new StickZone(settings.Outline, settings.OutlineMargin);
+        var filter = new InputFilter(new FilterProfile { RightStick = settings });
+
+        AssertBlocksOnlyInside(filter, new StickPoint(0.02, 0.3), p => zone.Nearest(p).Distance - zone.Margin);
+    }
+
+    [Fact]
+    public void Round_zone_off_center_keeps_each_push_direction_and_reaches_full()
+    {
+        var center = new StickPoint(0.3, 0.2);
+        var filter = new InputFilter(new FilterProfile
+        {
+            RightStick = new StickFilterSettings { CenterX = center.X, CenterY = center.Y, Deadzone = 0.2 },
+        });
+
+        for (var i = 0; i < 32; i++)
+        {
+            var angle = i * Math.Tau / 32;
+            var direction = new StickPoint(Math.Cos(angle), Math.Sin(angle));
+
+            var partway = filter.Apply(WithRight(center + direction * 0.4), 2 * i).RightStick;
+            var rim = filter.Apply(WithRight(direction), 2 * i + 1).RightStick;
+
+            var bend = Math.Abs(Math.IEEERemainder(Math.Atan2(partway.Y, partway.X) - angle, Math.Tau));
+            Assert.True(bend < 0.01, $"a push at {angle:0.00} rad bends by {bend:0.000} rad");
+            Assert.True(rim.Magnitude >= 0.999, $"a full push at {angle:0.00} rad only reaches {rim.Magnitude:0.000}");
+        }
     }
 
     [Fact]
@@ -134,7 +171,7 @@ public class InputFilterTests
         var filter = new InputFilter(new FilterProfile
         {
             AdaptiveCentering = true,
-            RightStick = new StickFilterSettings { Deadzone = 0.05, Hysteresis = 0 },
+            RightStick = new StickFilterSettings { Deadzone = 0.05 },
         });
         var drifted = WithRight(new StickPoint(0.09, 0));
 
@@ -167,5 +204,40 @@ public class InputFilterTests
 
         Assert.Equal(0, filter.Statistics.CenterAdjustments);
         Assert.Equal(0, filter.RightCenter.X, 6);
+    }
+
+    /// <summary>
+    /// Crosses the drawn edge out and back in along every direction from <paramref name="inside"/>, stopping a hair
+    /// either side of it. <paramref name="pastEdge"/> is how far a point sits outside the zone the live plot draws.
+    /// </summary>
+    private static void AssertBlocksOnlyInside(InputFilter filter, StickPoint inside, Func<StickPoint, double> pastEdge)
+    {
+        const double hair = 0.002;
+        var now = 0.0;
+        StickPoint Apply(StickPoint point) => filter.Apply(WithRight(point), now++).RightStick;
+
+        for (var i = 0; i < 32; i++)
+        {
+            var direction = new StickPoint(Math.Cos(i * Math.Tau / 32), Math.Sin(i * Math.Tau / 32));
+            double low = 0, high = 1;
+            for (var step = 0; step < 40; step++)
+            {
+                var travel = (low + high) / 2;
+                if (pastEdge(inside + direction * travel) > 0)
+                {
+                    high = travel;
+                }
+                else
+                {
+                    low = travel;
+                }
+            }
+
+            var edge = inside + direction * low;
+            Assert.Equal(StickPoint.Zero, Apply(inside));
+            Assert.Equal(StickPoint.Zero, Apply(edge - direction * hair));
+            Assert.NotEqual(StickPoint.Zero, Apply(edge + direction * hair));
+            Assert.Equal(StickPoint.Zero, Apply(edge - direction * hair));
+        }
     }
 }

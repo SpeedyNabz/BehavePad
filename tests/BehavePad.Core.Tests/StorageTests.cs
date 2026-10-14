@@ -37,7 +37,6 @@ public sealed class StorageTests : IDisposable
                 CenterX = 0.03,
                 CenterY = -0.11,
                 Deadzone = 0.14,
-                NoiseGate = 0.01,
                 Outline = [new StickPoint(0.01, -0.13), new StickPoint(0.05, 0.6)],
                 OutlineMargin = 0.04,
                 Learned = [new StickPoint(0.05, 0.64)],

@@ -60,12 +60,6 @@ public sealed record StickFilterSettings
     /// <summary>Stick travel that already counts as full deflection.</summary>
     public double OuterDeadzone { get; init; } = 0.97;
 
-    /// <summary>Movements smaller than this are treated as sensor noise.</summary>
-    public double NoiseGate { get; init; }
-
-    /// <summary>Extra travel needed to leave the deadzone, which stops flicker right at its edge.</summary>
-    public double Hysteresis { get; init; } = 0.006;
-
     /// <summary>Corners of the fitted zone's outline from the drift test. Used when <see cref="Shape"/> is <see cref="ZoneShape.Fitted"/>.</summary>
     public IReadOnlyList<StickPoint> Outline { get; init; } = [];
 
@@ -110,8 +104,6 @@ public sealed record StickFilterSettings
             CenterY = center.Y,
             Deadzone = deadzone,
             OuterDeadzone = Math.Clamp(Finite(OuterDeadzone, 1), deadzone + 0.05, 1.0),
-            NoiseGate = Math.Clamp(Finite(NoiseGate), 0, 0.05),
-            Hysteresis = Math.Clamp(Finite(Hysteresis), 0, 0.05),
             Outline = outline,
             OutlineMargin = margin,
             Learned = WithinReach(Learned).Take(MaxOutlineCorners).ToArray(),
@@ -128,8 +120,6 @@ public sealed record StickFilterSettings
         CenterY.Equals(other.CenterY) &&
         Deadzone.Equals(other.Deadzone) &&
         OuterDeadzone.Equals(other.OuterDeadzone) &&
-        NoiseGate.Equals(other.NoiseGate) &&
-        Hysteresis.Equals(other.Hysteresis) &&
         OutlineMargin.Equals(other.OutlineMargin) &&
         (Outline ?? []).SequenceEqual(other.Outline ?? []) &&
         (Learned ?? []).SequenceEqual(other.Learned ?? []);
@@ -144,8 +134,6 @@ public sealed record StickFilterSettings
         hash.Add(CenterY);
         hash.Add(Deadzone);
         hash.Add(OuterDeadzone);
-        hash.Add(NoiseGate);
-        hash.Add(Hysteresis);
         hash.Add(OutlineMargin);
         return hash.ToHashCode();
     }

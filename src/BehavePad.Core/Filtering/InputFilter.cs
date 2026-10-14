@@ -151,7 +151,7 @@ public sealed class InputFilter
 
     private StickRuntime CreateRuntime(StickFilterSettings settings)
     {
-        var runtime = new StickRuntime(settings.Center);
+        var runtime = new StickRuntime(settings.Center, settings.Deadzone);
         if (settings.Shape != ZoneShape.Fitted)
         {
             return runtime;
@@ -174,64 +174,23 @@ public sealed class InputFilter
 
     private StickRuntime Runtime(StickSide side) => side == StickSide.Left ? _left : _right;
 
+    /// <summary>
+    /// Blocks the stick only while its raw position sits inside the zone, which is exactly the area the live plot draws.
+    /// Nothing widens that area, so output starts the moment the stick crosses the drawn edge and ramps up from zero there.
+    /// A round zone is a zone with one corner at the stick's center.
+    /// </summary>
     private StickPoint FilterStick(StickPoint raw, StickFilterSettings settings, StickRuntime runtime, double now)
     {
-        if (runtime.Zone is { } zone)
-        {
-            return FilterFitted(raw, settings, runtime, zone);
-        }
-
-        if (Profile.AdaptiveCentering)
+        if (runtime.Zone is null && Profile.AdaptiveCentering)
         {
             UpdateAdaptiveCenter(raw, settings, runtime, now);
         }
 
-        var point = HoldNoise(StickMath.Recenter(raw, runtime.Center), settings, runtime);
-
-        var threshold = runtime.Active ? settings.Deadzone : settings.Deadzone + settings.Hysteresis;
-        if (point.Magnitude <= threshold)
-        {
-            runtime.Active = false;
-            return StickPoint.Zero;
-        }
-
-        runtime.Active = true;
-        return StickMath.ScaleRadial(point, settings.Deadzone, settings.OuterDeadzone);
-    }
-
-    /// <summary>Fitted zones work on raw positions. Output starts at the zone edge nearest the stick, so there is nothing to recenter.</summary>
-    private static StickPoint FilterFitted(StickPoint raw, StickFilterSettings settings, StickRuntime runtime, StickZone zone)
-    {
-        var point = HoldNoise(raw, settings, runtime);
-        var (nearest, distance) = zone.Nearest(point);
-        runtime.Point = point;
+        var zone = runtime.Zone ?? runtime.Circle;
+        var (nearest, distance) = zone.Nearest(raw);
+        runtime.Point = raw;
         runtime.OutlineDistance = distance;
-
-        var threshold = runtime.Active ? zone.Margin : zone.Margin + settings.Hysteresis;
-        if (distance <= threshold)
-        {
-            runtime.Active = false;
-            return StickPoint.Zero;
-        }
-
-        runtime.Active = true;
-        return zone.Output(point, nearest, distance, settings.OuterDeadzone);
-    }
-
-    private static StickPoint HoldNoise(StickPoint point, StickFilterSettings settings, StickRuntime runtime)
-    {
-        if (settings.NoiseGate <= 0)
-        {
-            return point;
-        }
-
-        if (!runtime.HasHeld || point.DistanceTo(runtime.Held) >= settings.NoiseGate)
-        {
-            runtime.Held = point;
-            runtime.HasHeld = true;
-        }
-
-        return runtime.Held;
+        return zone.Output(raw, nearest, distance, settings.OuterDeadzone);
     }
 
     private void Learn(StickRuntime runtime, bool othersIdle, double now)
@@ -265,7 +224,7 @@ public sealed class InputFilter
             return;
         }
 
-        runtime.Center = mean;
+        runtime.Circle = new StickZone([mean], settings.Deadzone);
         _centerAdjustments++;
     }
 
@@ -301,12 +260,10 @@ public sealed class InputFilter
         return output;
     }
 
-    private sealed class StickRuntime(StickPoint center)
+    private sealed class StickRuntime(StickPoint center, double deadzone)
     {
-        public StickPoint Center = center;
-        public StickPoint Held;
-        public bool HasHeld;
-        public bool Active;
+        /// <summary>The round zone. Its one corner is the stick's center, which adaptive centering can move.</summary>
+        public StickZone Circle = new([center], deadzone);
         public StillWindow Window;
 
         /// <summary>Replaced, never changed in place, so the UI thread can read it while the pump thread learns.</summary>
@@ -314,6 +271,8 @@ public sealed class InputFilter
         public ZoneLearner? Learner;
         public StickPoint Point;
         public double OutlineDistance;
+
+        public StickPoint Center => Circle.Hull[0];
     }
 
     private struct StillWindow

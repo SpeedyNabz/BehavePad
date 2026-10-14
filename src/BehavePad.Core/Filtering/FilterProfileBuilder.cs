@@ -128,8 +128,6 @@ public static class FilterProfileBuilder
     {
         var level = choice.Level;
         var deadzone = Math.Min(RequiredStickDeadzone(diagnosis, level), MaxStickDeadzone);
-        var noiseGate = diagnosis.Jitter >= 0.006 ? Math.Min(diagnosis.Jitter * 0.75, 0.02) : 0;
-        var hysteresis = Math.Clamp(0.006 + diagnosis.Jitter * 0.5, 0.006, 0.03);
         var (outline, margin) = FitOutline(diagnosis, level);
 
         return new StickFilterSettings
@@ -139,8 +137,6 @@ public static class FilterProfileBuilder
             CenterX = Math.Round(diagnosis.EstimatedCenter.X, 5),
             CenterY = Math.Round(diagnosis.EstimatedCenter.Y, 5),
             Deadzone = Math.Round(deadzone, 4),
-            NoiseGate = Math.Round(noiseGate, 4),
-            Hysteresis = Math.Round(hysteresis, 4),
             Outline = outline.Select(p => new StickPoint(Math.Round(p.X, 5), Math.Round(p.Y, 5))).ToArray(),
 
             // Round up so rounding the corners never uncovers a measured spot.
